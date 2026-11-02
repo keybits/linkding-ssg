@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
+
 	"github.com/lmorchard/linkding-ssg/pkg/config"
 	"github.com/lmorchard/linkding-ssg/pkg/linkding"
 	"github.com/lmorchard/linkding-ssg/pkg/pagefind"
@@ -65,10 +67,20 @@ Commands:
   serve    Start a local static HTTP preview server
   sync     Run full pipeline (backup -> build -> index)
 
-Global Configuration:
-  Environment variables supported:
-    LINKDING_URL    Base URL of your Linkding instance (e.g. https://bookmarks.example.com)
-    LINKDING_TOKEN  Linkding REST API token
+Environment Variables & .env Configuration:
+  LINKDING_URL            Linkding base URL (e.g. https://bookmarks.example.com)
+  LINKDING_TOKEN          Linkding REST API token
+  LINKDING_PAGE_SIZE      Page size for API fetches (default: 100)
+  LINKDING_FULL_BACKUP    Force full backup (true/false)
+  LINKDING_SNAPSHOT_PATH  Snapshot JSON file path (default: data/bookmarks.json)
+  LINKDING_OUTPUT_DIR     Static site output directory (default: dist)
+  LINKDING_BASE_URL       Site base URL prefix (e.g. / or /bookmarks/)
+  LINKDING_RECENT_LIMIT   Recent bookmarks count on home page (default: 50)
+  LINKDING_RSS_LIMIT      Recent bookmarks count in RSS feeds (default: 15)
+  LINKDING_SITE_TITLE     Site title for headers and feeds (default: Bookmarks)
+  LINKDING_TEMPLATES_DIR  Custom templates override directory
+  LINKDING_AUTO_INDEX     Run Pagefind search indexing after build (true/false)
+  LINKDING_SERVE_ADDR     Address to bind for local serve (default: :8080)
 `)
 }
 
@@ -79,13 +91,35 @@ func getEnvOrDefault(key, fallback string) string {
 	return fallback
 }
 
+func getEnvIntOrDefault(key string, fallback int) int {
+	if val := os.Getenv(key); strings.TrimSpace(val) != "" {
+		if parsed, err := strconv.Atoi(strings.TrimSpace(val)); err == nil {
+			return parsed
+		}
+	}
+	return fallback
+}
+
+func getEnvBoolOrDefault(key string, fallback bool) bool {
+	if val := os.Getenv(key); strings.TrimSpace(val) != "" {
+		lower := strings.ToLower(strings.TrimSpace(val))
+		if lower == "1" || lower == "true" || lower == "yes" {
+			return true
+		}
+		if lower == "0" || lower == "false" || lower == "no" {
+			return false
+		}
+	}
+	return fallback
+}
+
 func runBackup(args []string) error {
 	fs := flag.NewFlagSet("backup", flag.ExitOnError)
 	apiURL := fs.String("url", getEnvOrDefault("LINKDING_URL", ""), "Linkding base URL (or LINKDING_URL env)")
 	token := fs.String("token", getEnvOrDefault("LINKDING_TOKEN", ""), "Linkding API token (or LINKDING_TOKEN env)")
-	output := fs.String("output", "data/bookmarks.json", "Path to snapshot JSON output file")
-	pageSize := fs.Int("page-size", 100, "Number of bookmarks to fetch per API request")
-	forceFull := fs.Bool("full", false, "Force a full backup instead of incremental")
+	output := fs.String("output", getEnvOrDefault("LINKDING_SNAPSHOT_PATH", "data/bookmarks.json"), "Path to snapshot JSON output file (or LINKDING_SNAPSHOT_PATH env)")
+	pageSize := fs.Int("page-size", getEnvIntOrDefault("LINKDING_PAGE_SIZE", 100), "Number of bookmarks to fetch per API request (or LINKDING_PAGE_SIZE env)")
+	forceFull := fs.Bool("full", getEnvBoolOrDefault("LINKDING_FULL_BACKUP", false), "Force a full backup instead of incremental (or LINKDING_FULL_BACKUP env)")
 	fs.Parse(args)
 	if *apiURL == "" || *token == "" {
 		return fmt.Errorf("both --url and --token (or LINKDING_URL and LINKDING_TOKEN env vars) are required")
@@ -159,14 +193,14 @@ func runBackup(args []string) error {
 
 func runBuild(args []string) error {
 	fs := flag.NewFlagSet("build", flag.ExitOnError)
-	input := fs.String("input", "data/bookmarks.json", "Path to snapshot JSON file")
-	outputDir := fs.String("output-dir", "dist", "Directory to write static HTML site")
-	baseURL := fs.String("base-url", "", "Base URL path prefix (e.g. /bookmarks/)")
-	recentLimit := fs.Int("recent-limit", 50, "Number of bookmarks to show on home page")
-	rssLimit := fs.Int("rss-limit", 15, "Number of recent items to include in RSS feeds")
-	siteTitle := fs.String("site-title", "Bookmarks", "Site title for RSS feeds")
-	templatesDir := fs.String("templates-dir", "", "Optional custom directory for overriding HTML templates")
-	runIndexer := fs.Bool("index", false, "Run Pagefind indexer automatically after build")
+	input := fs.String("input", getEnvOrDefault("LINKDING_SNAPSHOT_PATH", "data/bookmarks.json"), "Path to snapshot JSON file (or LINKDING_SNAPSHOT_PATH env)")
+	outputDir := fs.String("output-dir", getEnvOrDefault("LINKDING_OUTPUT_DIR", "dist"), "Directory to write static HTML site (or LINKDING_OUTPUT_DIR env)")
+	baseURL := fs.String("base-url", getEnvOrDefault("LINKDING_BASE_URL", ""), "Base URL path prefix (or LINKDING_BASE_URL env)")
+	recentLimit := fs.Int("recent-limit", getEnvIntOrDefault("LINKDING_RECENT_LIMIT", 50), "Number of bookmarks to show on home page (or LINKDING_RECENT_LIMIT env)")
+	rssLimit := fs.Int("rss-limit", getEnvIntOrDefault("LINKDING_RSS_LIMIT", 15), "Number of recent items to include in RSS feeds (or LINKDING_RSS_LIMIT env)")
+	siteTitle := fs.String("site-title", getEnvOrDefault("LINKDING_SITE_TITLE", "Bookmarks"), "Site title for RSS feeds (or LINKDING_SITE_TITLE env)")
+	templatesDir := fs.String("templates-dir", getEnvOrDefault("LINKDING_TEMPLATES_DIR", ""), "Optional custom directory for overriding HTML templates (or LINKDING_TEMPLATES_DIR env)")
+	runIndexer := fs.Bool("index", getEnvBoolOrDefault("LINKDING_AUTO_INDEX", false), "Run Pagefind indexer automatically after build (or LINKDING_AUTO_INDEX env)")
 	fs.Parse(args)
 
 	log.Printf("Loading bookmarks from %s...", *input)
@@ -207,9 +241,8 @@ func runBuild(args []string) error {
 
 func runIndex(args []string) error {
 	fs := flag.NewFlagSet("index", flag.ExitOnError)
-	siteDir := fs.String("site-dir", "dist", "Directory of static site to index")
+	siteDir := fs.String("site-dir", getEnvOrDefault("LINKDING_OUTPUT_DIR", "dist"), "Directory of static site to index (or LINKDING_OUTPUT_DIR env)")
 	fs.Parse(args)
-
 	log.Printf("Indexing static site in %s using Pagefind...", *siteDir)
 	if err := pagefind.IndexSite(context.Background(), *siteDir); err != nil {
 		return err
@@ -220,8 +253,8 @@ func runIndex(args []string) error {
 
 func runServe(args []string) error {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
-	siteDir := fs.String("site-dir", "dist", "Directory to serve")
-	addr := fs.String("addr", ":8080", "Address and port to bind (e.g. :8080 or 127.0.0.1:8080)")
+	siteDir := fs.String("site-dir", getEnvOrDefault("LINKDING_OUTPUT_DIR", "dist"), "Directory to serve (or LINKDING_OUTPUT_DIR env)")
+	addr := fs.String("addr", getEnvOrDefault("LINKDING_SERVE_ADDR", ":8080"), "Address and port to bind (or LINKDING_SERVE_ADDR env)")
 	fs.Parse(args)
 
 	return server.Serve(*siteDir, *addr)
@@ -231,11 +264,12 @@ func runSync(args []string) error {
 	fs := flag.NewFlagSet("sync", flag.ExitOnError)
 	apiURL := fs.String("url", getEnvOrDefault("LINKDING_URL", ""), "Linkding base URL (or LINKDING_URL env)")
 	token := fs.String("token", getEnvOrDefault("LINKDING_TOKEN", ""), "Linkding API token (or LINKDING_TOKEN env)")
-	dataSnapshot := fs.String("snapshot", "data/bookmarks.json", "Path to snapshot JSON file")
-	outputDir := fs.String("output-dir", "dist", "Directory to write static HTML site")
-	baseURL := fs.String("base-url", "", "Base URL path prefix")
-	forceFull := fs.Bool("full", false, "Force a full backup instead of incremental")
-	rssLimit := fs.Int("rss-limit", 15, "Number of recent items to include in RSS feeds")
+	dataSnapshot := fs.String("snapshot", getEnvOrDefault("LINKDING_SNAPSHOT_PATH", "data/bookmarks.json"), "Path to snapshot JSON file (or LINKDING_SNAPSHOT_PATH env)")
+	outputDir := fs.String("output-dir", getEnvOrDefault("LINKDING_OUTPUT_DIR", "dist"), "Directory to write static HTML site (or LINKDING_OUTPUT_DIR env)")
+	baseURL := fs.String("base-url", getEnvOrDefault("LINKDING_BASE_URL", ""), "Base URL path prefix (or LINKDING_BASE_URL env)")
+	forceFull := fs.Bool("full", getEnvBoolOrDefault("LINKDING_FULL_BACKUP", false), "Force a full backup instead of incremental (or LINKDING_FULL_BACKUP env)")
+	rssLimit := fs.Int("rss-limit", getEnvIntOrDefault("LINKDING_RSS_LIMIT", 15), "Number of recent items to include in RSS feeds (or LINKDING_RSS_LIMIT env)")
+	siteTitle := fs.String("site-title", getEnvOrDefault("LINKDING_SITE_TITLE", "Bookmarks"), "Site title for RSS feeds (or LINKDING_SITE_TITLE env)")
 	skipIndex := fs.Bool("skip-index", false, "Skip Pagefind search indexing step")
 	fs.Parse(args)
 
@@ -246,7 +280,13 @@ func runSync(args []string) error {
 	if err := runBackup(backupArgs); err != nil {
 		return err
 	}
-	buildArgs := []string{"--input", *dataSnapshot, "--output-dir", *outputDir, "--base-url", *baseURL, fmt.Sprintf("--rss-limit=%d", *rssLimit)}
+	buildArgs := []string{
+		"--input", *dataSnapshot,
+		"--output-dir", *outputDir,
+		"--base-url", *baseURL,
+		fmt.Sprintf("--rss-limit=%d", *rssLimit),
+		fmt.Sprintf("--site-title=%s", *siteTitle),
+	}
 	if !*skipIndex {
 		buildArgs = append(buildArgs, "--index")
 	}

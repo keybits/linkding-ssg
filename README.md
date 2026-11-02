@@ -94,3 +94,25 @@ Ideal for cron jobs or automated daily tasks:
 ```bash
 ./linkding-ssg sync
 ```
+
+---
+
+## Configuration Reference
+
+Every CLI option can be configured via flags, environment variables, or a `.env` file (CLI flags take precedence over `.env`):
+
+| CLI Flag | Environment Variable | Default | Description |
+|---|---|---|---|
+| `--url` | `LINKDING_URL` | *None (required)* | Base URL of Linkding instance |
+| `--token` | `LINKDING_TOKEN` | *None (required)* | REST API token |
+| `--page-size` | `LINKDING_PAGE_SIZE` | `100` | API items fetched per request |
+| `--full` | `LINKDING_FULL_BACKUP` | `false` | Force full backup instead of incremental |
+| `--output` / `--input` / `--snapshot` | `LINKDING_SNAPSHOT_PATH` | `data/bookmarks.json` | Path to JSON snapshot |
+| `--output-dir` / `--site-dir` | `LINKDING_OUTPUT_DIR` | `dist` | Generated HTML output directory |
+| `--base-url` | `LINKDING_BASE_URL` | `""` | Site URL prefix (e.g. `/` or `/bookmarks/`) |
+| `--recent-limit` | `LINKDING_RECENT_LIMIT` | `50` | Number of recent items on home page |
+| `--rss-limit` | `LINKDING_RSS_LIMIT` | `15` | Number of items in RSS feeds |
+| `--site-title` | `LINKDING_SITE_TITLE` | `Bookmarks` | Feed and site header title |
+| `--templates-dir` | `LINKDING_TEMPLATES_DIR` | `""` (embedded) | Path to custom HTML templates |
+| `--index` | `LINKDING_AUTO_INDEX` | `false` | Run Pagefind indexer after build |
+| `--addr` | `LINKDING_SERVE_ADDR` | `:8080` | Address for `serve` preview |
