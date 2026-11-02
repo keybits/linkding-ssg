@@ -188,12 +188,11 @@ func copyFile(src, dst string) error {
 	}
 	defer in.Close()
 
-	out, err := os.Create(dst)
+	out, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}
 	defer out.Close()
-
 	if _, err := io.Copy(out, in); err != nil {
 		return err
 	}
@@ -232,9 +231,11 @@ func downloadAsset(ctx context.Context, client *http.Client, rawURL, destPath, t
 	if _, err := io.Copy(tempFile, resp.Body); err != nil {
 		return err
 	}
+	if err := tempFile.Chmod(0644); err != nil {
+		return err
+	}
 	if err := tempFile.Close(); err != nil {
 		return err
 	}
-
 	return os.Rename(tempPath, destPath)
 }
