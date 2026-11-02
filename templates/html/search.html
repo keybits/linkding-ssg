@@ -1,8 +1,8 @@
 {{define "title"}}Search Bookmarks{{end}}
 
 {{define "head"}}
-<link href="{{relURL "pagefind/pagefind-ui.css"}}" rel="stylesheet">
-<script src="{{relURL "pagefind/pagefind-ui.js"}}" type="text/javascript"></script>
+<link href="{{relURL "pagefind/pagefind-component-ui.css"}}" rel="stylesheet">
+<script src="{{relURL "pagefind/pagefind-component-ui.js"}}" type="module"></script>
 {{end}}
 
 {{define "content"}}
@@ -11,16 +11,11 @@
   <p>Instant client-side full-text search powered by Pagefind.</p>
 </div>
 
-<div id="search-box" data-pagefind-ignore></div>
-
-<script>
-  window.addEventListener('DOMContentLoaded', (event) => {
-    new PagefindUI({
-      element: "#search-box",
-      showSubResults: false,
-      showImages: false,
-      baseUrl: "{{relURL "/"}}"
-    });
-  });
-</script>
+<div id="search-container" data-pagefind-ignore>
+  <pagefind-config bundle-path="{{relURL "pagefind/"}}"></pagefind-config>
+  <pagefind-input placeholder="Search bookmarks by title, note, or URL..." autofocus></pagefind-input>
+  <pagefind-summary default-message="Type keywords above to search your bookmarks archive."></pagefind-summary>
+  <pagefind-results hide-sub-results></pagefind-results>
+  <pagefind-keyboard-hints></pagefind-keyboard-hints>
+</div>
 {{end}}
