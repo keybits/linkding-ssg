@@ -1,10 +1,18 @@
 {{define "bookmark_card"}}
 <article class="bookmark-card" data-pagefind-ignore>
-  <h2 class="bookmark-title-row">
-    <a href="{{.URL}}" class="bookmark-link" target="_blank" rel="noopener noreferrer">{{titleOrURL .}}</a>
-  </h2>
-  <div class="bookmark-url">{{.URL}}</div>
-
+  <div class="bookmark-content-row">
+    {{if .PreviewImageURL}}
+    <div class="bookmark-thumbnail">
+      <a href="{{.URL}}" target="_blank" rel="noopener noreferrer">
+        <img src="{{.PreviewImageURL}}" alt="" loading="lazy">
+      </a>
+    </div>
+    {{end}}
+    <div class="bookmark-details">
+      <h2 class="bookmark-title-row">
+        {{if .FaviconURL}}<img src="{{.FaviconURL}}" class="bookmark-favicon" alt="" width="16" height="16" loading="lazy"> {{end}}<a href="{{.URL}}" class="bookmark-link" target="_blank" rel="noopener noreferrer">{{titleOrURL .}}</a>
+      </h2>
+      <div class="bookmark-url">{{.URL}}</div>
   {{if .DisplayDescription}}
   <div class="bookmark-desc">{{.DisplayDescription}}</div>
   {{end}}
@@ -14,8 +22,10 @@
   {{end}}
 
   <div class="bookmark-meta">
-    <time datetime="{{formatDateTime .DateCreated}}">{{formatDate .DateCreated}}</time>
-
+    {{$dt := bookmarkDate .}}
+    {{if not $dt.IsZero}}
+    <time datetime="{{formatDateTime $dt}}">{{formatDate $dt}}</time>
+    {{end}}
     {{if .TagNames}}
     <div class="bookmark-tags">
       {{range .TagNames}}
@@ -30,6 +40,7 @@
       {{end}}
       <a href="{{bookmarkURL .ID}}" title="Permalink to bookmark #{{.ID}}">#{{.ID}}</a>
     </div>
+  </div>
   </div>
 </article>
 {{end}}

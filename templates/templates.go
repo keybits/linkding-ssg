@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"io/fs"
+	"net/url"
 	"strings"
 	"time"
 
@@ -38,17 +39,28 @@ func funcMap(baseURL string) template.FuncMap {
 	return template.FuncMap{
 		"relURL": relURL,
 		"formatDate": func(t time.Time) string {
+			if t.IsZero() || t.Year() <= 1 {
+				return ""
+			}
 			return t.UTC().Format("Jan 02, 2006")
 		},
 		"formatDateTime": func(t time.Time) string {
+			if t.IsZero() || t.Year() <= 1 {
+				return ""
+			}
 			return t.UTC().Format("2006-01-02 15:04:05 UTC")
+		},
+		"bookmarkDate": func(b linkding.Bookmark) time.Time {
+			return b.Date()
 		},
 		"bookmarkURL": func(id int64) string {
 			shard := id / 1000
 			return relURL(fmt.Sprintf("b/%03d/%d/", shard, id))
 		},
 		"tagURL": func(tag string) string {
-			return relURL(fmt.Sprintf("tags/%s/", tag))
+			safe := strings.ReplaceAll(tag, "/", "_")
+			safe = strings.ReplaceAll(safe, "\\", "_")
+			return relURL(fmt.Sprintf("tags/%s/", url.PathEscape(safe)))
 		},
 		"monthURL": func(year int, month time.Month) string {
 			return relURL(fmt.Sprintf("archive/%04d/%02d/", year, int(month)))

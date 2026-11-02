@@ -2,6 +2,7 @@ package ssg
 
 import (
 	"fmt"
+	"net/url"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -9,6 +10,14 @@ import (
 
 	"github.com/lmorchard/linkding-ssg/pkg/linkding"
 )
+
+// SafeTagSlug transforms any arbitrary tag name into a safe filesystem and URL directory slug.
+func SafeTagSlug(tag string) string {
+	// Replace forward/backward slashes to prevent subfolder creation issues
+	s := strings.ReplaceAll(tag, "/", "_")
+	s = strings.ReplaceAll(s, "\\", "_")
+	return url.PathEscape(s)
+}
 
 // ShardedIDPath returns the relative URL path for a bookmark's permalink.
 // To avoid directory clutter with 30k+ files, we shard by bookmark ID.
@@ -75,10 +84,12 @@ func BuildIndex(bookmarks []linkding.Bookmark, recentLimit int) *ArchiveIndex {
 
 	// Sort chronologically descending (newest first)
 	sort.Slice(sorted, func(i, j int) bool {
-		if sorted[i].DateCreated.Equal(sorted[j].DateCreated) {
+		tI := sorted[i].Date()
+		tJ := sorted[j].Date()
+		if tI.Equal(tJ) {
 			return sorted[i].ID > sorted[j].ID
 		}
-		return sorted[i].DateCreated.After(sorted[j].DateCreated)
+		return tI.After(tJ)
 	})
 
 	recentCount := recentLimit
@@ -91,9 +102,8 @@ func BuildIndex(bookmarks []linkding.Bookmark, recentLimit int) *ArchiveIndex {
 	tagsByName := make(map[string]*TagBucket)
 
 	for _, b := range sorted {
-		created := b.DateCreated.UTC()
+		created := b.Date().UTC()
 		monthKey := created.Format("2006-01")
-
 		bucket, exists := monthsByKey[monthKey]
 		if !exists {
 			bucket = &MonthBucket{
@@ -115,7 +125,7 @@ func BuildIndex(bookmarks []linkding.Bookmark, recentLimit int) *ArchiveIndex {
 			if !tagExists {
 				tagBucket = &TagBucket{
 					Name: tag,
-					Path: fmt.Sprintf("tags/%s/", tag),
+					Path: fmt.Sprintf("tags/%s/", SafeTagSlug(tag)),
 				}
 				tagsByName[tag] = tagBucket
 			}

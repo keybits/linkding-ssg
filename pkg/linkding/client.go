@@ -51,8 +51,17 @@ func (b *Bookmark) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
+// Date returns the best timestamp available (DateCreated, DateAdded, or DateModified).
+func (b Bookmark) Date() time.Time {
+	if !b.DateCreated.IsZero() {
+		return b.DateCreated
+	}
+	if !b.DateAdded.IsZero() {
+		return b.DateAdded
+	}
+	return b.DateModified
+}
 
-// DisplayTitle returns the best title available.
 func (b Bookmark) DisplayTitle() string {
 	if strings.TrimSpace(b.Title) != "" {
 		return b.Title

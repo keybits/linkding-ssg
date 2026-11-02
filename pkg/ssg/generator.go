@@ -107,7 +107,7 @@ func (g *Generator) Generate(bookmarks []linkding.Bookmark) error {
 	// 7. Render Individual Tag Archives (tags/{tag}/index.html)
 	log.Printf("Rendering %d tag detail pages...", len(idx.Tags))
 	for _, tag := range idx.Tags {
-		tagPath := filepath.Join("tags", tag.Name, "index.html")
+		tagPath := filepath.Join("tags", SafeTagSlug(tag.Name), "index.html")
 		if err := g.renderFile(tagPath, g.templates.TagDetailTemplate, map[string]any{
 			"Tag": tag,
 		}); err != nil {

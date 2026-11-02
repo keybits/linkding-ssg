@@ -8,11 +8,19 @@
 <!-- This single page is the primary Pagefind indexing unit -->
 <article class="bookmark-card" data-pagefind-body>
   <h1 class="bookmark-title-row" data-pagefind-meta="title" style="font-size:1.6rem; margin-bottom: 0.8rem;">
-    <a href="{{.Bookmark.URL}}" class="bookmark-link" target="_blank" rel="noopener noreferrer">{{titleOrURL .Bookmark}}</a>
+    {{if .Bookmark.FaviconURL}}<img src="{{.Bookmark.FaviconURL}}" class="bookmark-favicon" alt="" width="20" height="20" loading="lazy"> {{end}}<a href="{{.Bookmark.URL}}" class="bookmark-link" target="_blank" rel="noopener noreferrer">{{titleOrURL .Bookmark}}</a>
   </h1>
   <div class="bookmark-url" style="font-size:0.95rem; margin-bottom: 1.25rem;">
     <a href="{{.Bookmark.URL}}" target="_blank" rel="noopener noreferrer" style="color:var(--text-muted)">{{.Bookmark.URL}}</a>
   </div>
+
+  {{if .Bookmark.PreviewImageURL}}
+  <div class="bookmark-permalink-thumbnail" style="margin-bottom: 1.25rem;">
+    <a href="{{.Bookmark.URL}}" target="_blank" rel="noopener noreferrer">
+      <img src="{{.Bookmark.PreviewImageURL}}" alt="" style="max-width:100%; max-height:400px; border-radius:6px; object-fit:cover; border:1px solid var(--border-color);" loading="lazy">
+    </a>
+  </div>
+  {{end}}
 
   {{if .Bookmark.DisplayDescription}}
   <div class="bookmark-desc" style="font-size:1.1rem; line-height:1.6;">{{.Bookmark.DisplayDescription}}</div>
@@ -26,8 +34,10 @@
   {{end}}
 
   <div class="bookmark-meta" style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
-    <span>Saved on <time datetime="{{formatDateTime .Bookmark.DateCreated}}">{{formatDate .Bookmark.DateCreated}}</time></span>
-
+    {{$dt := bookmarkDate .Bookmark}}
+    {{if not $dt.IsZero}}
+    <span>Saved on <time datetime="{{formatDateTime $dt}}">{{formatDate $dt}}</time></span>
+    {{end}}
     {{if .Bookmark.TagNames}}
     <div class="bookmark-tags">
       {{range .Bookmark.TagNames}}
