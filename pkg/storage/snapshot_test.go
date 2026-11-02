@@ -80,3 +80,32 @@ func TestLoadBareJSONArray(t *testing.T) {
 		t.Errorf("expected id 99, got %d", loaded.Bookmarks[0].ID)
 	}
 }
+
+func TestMergeBookmarks(t *testing.T) {
+	existing := []linkding.Bookmark{
+		{ID: 1, Title: "One Old", DateCreated: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
+		{ID: 2, Title: "Two", DateCreated: time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC)},
+	}
+
+	newItems := []linkding.Bookmark{
+		{ID: 3, Title: "Three Newest", DateCreated: time.Date(2025, 1, 3, 0, 0, 0, 0, time.UTC)},
+		{ID: 1, Title: "One Updated", DateCreated: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
+	}
+
+	merged := MergeBookmarks(newItems, existing)
+
+	if len(merged) != 3 {
+		t.Fatalf("expected 3 bookmarks after merge, got %d", len(merged))
+	}
+
+	// Should be sorted descending: ID 3 (Jan 3), ID 2 (Jan 2), ID 1 (Jan 1)
+	if merged[0].ID != 3 || merged[0].Title != "Three Newest" {
+		t.Errorf("unexpected item 0: %+v", merged[0])
+	}
+	if merged[1].ID != 2 {
+		t.Errorf("unexpected item 1: %+v", merged[1])
+	}
+	if merged[2].ID != 1 || merged[2].Title != "One Updated" {
+		t.Errorf("unexpected item 2: %+v", merged[2])
+	}
+}

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
-
 	"github.com/lmorchard/linkding-ssg/pkg/linkding"
 )
 
@@ -90,4 +90,51 @@ func LoadSnapshot(filePath string) (*linkding.Snapshot, error) {
 		TotalCount: len(bareList),
 		Bookmarks:  bareList,
 	}, nil
+}
+
+// MergeBookmarks merges newBookmarks with existingBookmarks.
+// If an ID exists in both, the new bookmark replaces the old one (updating edits).
+// All bookmarks are sorted descending by DateCreated (or DateAdded), then ID.
+func MergeBookmarks(newBookmarks []linkding.Bookmark, existingBookmarks []linkding.Bookmark) []linkding.Bookmark {
+	mergedMap := make(map[int64]linkding.Bookmark, len(existingBookmarks)+len(newBookmarks))
+
+	// Populate existing bookmarks first
+	for _, b := range existingBookmarks {
+		mergedMap[b.ID] = b
+	}
+
+	// Overwrite or append with new bookmarks
+	for _, b := range newBookmarks {
+		mergedMap[b.ID] = b
+	}
+
+	result := make([]linkding.Bookmark, 0, len(mergedMap))
+	for _, b := range mergedMap {
+		result = append(result, b)
+	}
+
+	// Sort newest first
+	sortBookmarksDescending(result)
+	return result
+}
+
+func sortBookmarksDescending(bms []linkding.Bookmark) {
+	sort.Slice(bms, func(i, j int) bool {
+		return isBookmarkAfter(bms[i], bms[j])
+	})
+}
+
+func isBookmarkAfter(a, b linkding.Bookmark) bool {
+	aTime := a.DateCreated
+	if aTime.IsZero() {
+		aTime = a.DateAdded
+	}
+	bTime := b.DateCreated
+	if bTime.IsZero() {
+		bTime = b.DateAdded
+	}
+	if aTime.Equal(bTime) {
+		return a.ID > b.ID
+	}
+	return aTime.After(bTime)
 }

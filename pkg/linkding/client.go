@@ -28,8 +28,28 @@ type Bookmark struct {
 	Unread                bool      `json:"unread"`
 	Shared                bool      `json:"shared"`
 	TagNames              []string  `json:"tag_names"`
+	DateAdded             time.Time `json:"date_added"`
 	DateCreated           time.Time `json:"date_created"`
 	DateModified          time.Time `json:"date_modified"`
+}
+
+// UnmarshalJSON ensures both date_added and date_created are populated.
+func (b *Bookmark) UnmarshalJSON(data []byte) error {
+	type Alias Bookmark
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(b),
+	}
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	if b.DateCreated.IsZero() && !b.DateAdded.IsZero() {
+		b.DateCreated = b.DateAdded
+	} else if b.DateAdded.IsZero() && !b.DateCreated.IsZero() {
+		b.DateAdded = b.DateCreated
+	}
+	return nil
 }
 
 // DisplayTitle returns the best title available.
@@ -183,8 +203,16 @@ func (c *Client) GetBookmarks(ctx context.Context, opts ListOptions) (*BookmarkL
 // ProgressCallback receives the count of bookmarks fetched so far and the total count.
 type ProgressCallback func(fetched int, total int)
 
-// FetchAllBookmarks iterates through all pages and collects all bookmarks.
-func (c *Client) FetchAllBookmarks(ctx context.Context, pageSize int, progress ProgressCallback) ([]Bookmark, error) {
+// StopPredicate returns true if fetching should stop upon seeing a bookmark.
+type StopPredicate func(b Bookmark) bool
+
+ // FetchAllBookmarks iterates through all pages and collects all bookmarks.
+ func (c *Client) FetchAllBookmarks(ctx context.Context, pageSize int, progress ProgressCallback) ([]Bookmark, error) {
+	return c.FetchBookmarksIncremental(ctx, pageSize, nil, progress)
+}
+
+// FetchBookmarksIncremental fetches bookmarks until the stop predicate returns true or all bookmarks are read.
+func (c *Client) FetchBookmarksIncremental(ctx context.Context, pageSize int, shouldStop StopPredicate, progress ProgressCallback) ([]Bookmark, error) {
 	if pageSize <= 0 {
 		pageSize = 100
 	}
@@ -192,6 +220,7 @@ func (c *Client) FetchAllBookmarks(ctx context.Context, pageSize int, progress P
 	var all []Bookmark
 	offset := 0
 	totalCount := -1
+	stopped := false
 
 	for {
 		resp, err := c.GetBookmarks(ctx, ListOptions{
@@ -209,12 +238,19 @@ func (c *Client) FetchAllBookmarks(ctx context.Context, pageSize int, progress P
 			}
 		}
 
-		all = append(all, resp.Results...)
+		for _, b := range resp.Results {
+			if shouldStop != nil && shouldStop(b) {
+				stopped = true
+				break
+			}
+			all = append(all, b)
+		}
+
 		if progress != nil {
 			progress(len(all), totalCount)
 		}
 
-		if resp.Next == nil || *resp.Next == "" || len(resp.Results) == 0 || len(all) >= totalCount {
+		if stopped || resp.Next == nil || *resp.Next == "" || len(resp.Results) == 0 || len(all) >= totalCount {
 			break
 		}
 

@@ -51,6 +51,12 @@ cp .env.example .env
 ./linkding-ssg backup
 ```
 
+By default, `backup` runs **incrementally** if an existing snapshot exists at `--output`, stopping as soon as it reaches bookmarks already saved locally, then merges the new and existing bookmarks.
+
+To force a full sync of all bookmarks:
+```bash
+./linkding-ssg backup --full
+```
 ### 2. Build the Static Site
 
 Generate HTML into `dist/` directly from the local JSON file (no network calls):

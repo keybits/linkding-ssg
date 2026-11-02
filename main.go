@@ -85,8 +85,8 @@ func runBackup(args []string) error {
 	token := fs.String("token", getEnvOrDefault("LINKDING_TOKEN", ""), "Linkding API token (or LINKDING_TOKEN env)")
 	output := fs.String("output", "data/bookmarks.json", "Path to snapshot JSON output file")
 	pageSize := fs.Int("page-size", 100, "Number of bookmarks to fetch per API request")
+	forceFull := fs.Bool("full", false, "Force a full backup instead of incremental")
 	fs.Parse(args)
-
 	if *apiURL == "" || *token == "" {
 		return fmt.Errorf("both --url and --token (or LINKDING_URL and LINKDING_TOKEN env vars) are required")
 	}
@@ -101,19 +101,53 @@ func runBackup(args []string) error {
 	}
 
 	ctx := context.Background()
-	log.Println("Starting bookmark export...")
-	bookmarks, err := client.FetchAllBookmarks(ctx, *pageSize, func(fetched, total int) {
-		if total > 0 {
-			percent := float64(fetched) / float64(total) * 100
-			log.Printf("Fetched %d / %d bookmarks (%.1f%%)...", fetched, total, percent)
-		} else {
-			log.Printf("Fetched %d bookmarks...", fetched)
+	var bookmarks []linkding.Bookmark
+
+	// Check for existing snapshot for incremental sync
+	var existingBookmarks []linkding.Bookmark
+	knownIDs := make(map[int64]struct{})
+	if !*forceFull {
+		if prevSnapshot, err := storage.LoadSnapshot(*output); err == nil && len(prevSnapshot.Bookmarks) > 0 {
+			existingBookmarks = prevSnapshot.Bookmarks
+			for _, b := range existingBookmarks {
+				knownIDs[b.ID] = struct{}{}
+			}
+			log.Printf("Found existing snapshot with %d bookmarks. Running incremental backup...", len(existingBookmarks))
 		}
-	})
-	if err != nil {
-		return fmt.Errorf("fetching bookmarks: %w", err)
 	}
 
+	if len(knownIDs) > 0 {
+		fetchedNew, err := client.FetchBookmarksIncremental(ctx, *pageSize, func(b linkding.Bookmark) bool {
+			_, found := knownIDs[b.ID]
+			return found
+		}, func(fetched, total int) {
+			log.Printf("Fetched %d new/recent bookmarks (total upstream: %d)...", fetched, total)
+		})
+		if err != nil {
+			return fmt.Errorf("fetching incremental bookmarks: %w", err)
+		}
+
+		log.Printf("Fetched %d new bookmarks. Merging with %d existing bookmarks...", len(fetchedNew), len(existingBookmarks))
+		bookmarks = storage.MergeBookmarks(fetchedNew, existingBookmarks)
+	} else {
+		if *forceFull {
+			log.Println("Starting full backup (--full specified)...")
+		} else {
+			log.Println("No existing snapshot found. Starting full initial backup...")
+		}
+		var err error
+		bookmarks, err = client.FetchAllBookmarks(ctx, *pageSize, func(fetched, total int) {
+			if total > 0 {
+				percent := float64(fetched) / float64(total) * 100
+				log.Printf("Fetched %d / %d bookmarks (%.1f%%)...", fetched, total, percent)
+			} else {
+				log.Printf("Fetched %d bookmarks...", fetched)
+			}
+		})
+		if err != nil {
+			return fmt.Errorf("fetching bookmarks: %w", err)
+		}
+	}
 	log.Printf("Successfully fetched %d bookmarks. Writing atomic snapshot to %s...", len(bookmarks), *output)
 	if err := storage.SaveSnapshot(*output, *apiURL, bookmarks); err != nil {
 		return fmt.Errorf("saving snapshot: %w", err)
@@ -196,13 +230,17 @@ func runSync(args []string) error {
 	dataSnapshot := fs.String("snapshot", "data/bookmarks.json", "Path to snapshot JSON file")
 	outputDir := fs.String("output-dir", "dist", "Directory to write static HTML site")
 	baseURL := fs.String("base-url", "", "Base URL path prefix")
+	forceFull := fs.Bool("full", false, "Force a full backup instead of incremental")
 	skipIndex := fs.Bool("skip-index", false, "Skip Pagefind search indexing step")
 	fs.Parse(args)
 
-	if err := runBackup([]string{"--url", *apiURL, "--token", *token, "--output", *dataSnapshot}); err != nil {
+	backupArgs := []string{"--url", *apiURL, "--token", *token, "--output", *dataSnapshot}
+	if *forceFull {
+		backupArgs = append(backupArgs, "--full")
+	}
+	if err := runBackup(backupArgs); err != nil {
 		return err
 	}
-
 	buildArgs := []string{"--input", *dataSnapshot, "--output-dir", *outputDir, "--base-url", *baseURL}
 	if !*skipIndex {
 		buildArgs = append(buildArgs, "--index")
