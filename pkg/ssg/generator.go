@@ -22,6 +22,7 @@ type GeneratorOptions struct {
 	RSSLimit     int    // number of recent items to include in RSS feeds (default 15)
 	SiteTitle    string // site title for RSS feeds
 	TemplatesDir string // optional template directory override
+	StaticDir    string // optional static assets directory override
 }
 
 // Generator builds the static HTML site from linkding bookmarks.
@@ -43,6 +44,22 @@ func NewGenerator(opts GeneratorOptions) (*Generator, error) {
 	}
 	if opts.SiteTitle == "" {
 		opts.SiteTitle = "Bookmarks"
+	}
+
+	// If TemplatesDir not explicitly specified, auto-detect data/templates
+	if opts.TemplatesDir == "" {
+		defaultTmpl := filepath.Join("data", "templates")
+		if stat, err := os.Stat(defaultTmpl); err == nil && stat.IsDir() {
+			opts.TemplatesDir = defaultTmpl
+		}
+	}
+
+	// If StaticDir not explicitly specified, auto-detect data/static
+	if opts.StaticDir == "" {
+		defaultStatic := filepath.Join("data", "static")
+		if stat, err := os.Stat(defaultStatic); err == nil && stat.IsDir() {
+			opts.StaticDir = defaultStatic
+		}
 	}
 
 	tmplSet, err := templates.LoadTemplates(opts.TemplatesDir, opts.BaseURL)
@@ -197,14 +214,46 @@ func (g *Generator) renderFile(relPath string, tmpl *template.Template, data any
 }
 
 func (g *Generator) copyStaticAssets() error {
-	staticSub, err := fs.Sub(templates.EmbeddedFS, "static")
-	if err != nil {
-		return fmt.Errorf("getting static sub-FS: %w", err)
-	}
-
 	targetDir := filepath.Join(g.opts.OutputDir, "static")
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		return fmt.Errorf("creating static target dir: %w", err)
+	}
+
+	// 1. If custom StaticDir exists on disk, copy from disk
+	if g.opts.StaticDir != "" {
+		if stat, err := os.Stat(g.opts.StaticDir); err == nil && stat.IsDir() {
+			return filepath.WalkDir(g.opts.StaticDir, func(path string, d fs.DirEntry, err error) error {
+				if err != nil {
+					return err
+				}
+				rel, err := filepath.Rel(g.opts.StaticDir, path)
+				if err != nil {
+					return err
+				}
+				destPath := filepath.Join(targetDir, rel)
+				if d.IsDir() {
+					return os.MkdirAll(destPath, 0755)
+				}
+				srcFile, err := os.Open(path)
+				if err != nil {
+					return err
+				}
+				defer srcFile.Close()
+				dstFile, err := os.Create(destPath)
+				if err != nil {
+					return err
+				}
+				defer dstFile.Close()
+				_, err = io.Copy(dstFile, srcFile)
+				return err
+			})
+		}
+	}
+
+	// 2. Otherwise copy from embedded FS
+	staticSub, err := fs.Sub(templates.EmbeddedFS, "static")
+	if err != nil {
+		return fmt.Errorf("getting static sub-FS: %w", err)
 	}
 
 	return fs.WalkDir(staticSub, ".", func(path string, d fs.DirEntry, err error) error {

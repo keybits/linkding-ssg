@@ -15,6 +15,7 @@ import (
 	"github.com/lmorchard/linkding-ssg/pkg/server"
 	"github.com/lmorchard/linkding-ssg/pkg/ssg"
 	"github.com/lmorchard/linkding-ssg/pkg/storage"
+	"github.com/lmorchard/linkding-ssg/templates"
 )
 
 func main() {
@@ -37,6 +38,8 @@ func main() {
 		err = runBackup(args)
 	case "build":
 		err = runBuild(args)
+	case "eject":
+		err = runEject(args)
 	case "index":
 		err = runIndex(args)
 	case "serve":
@@ -63,10 +66,10 @@ func printUsage() {
 Commands:
   backup   Fetch bookmarks from Linkding API and save snapshot to JSON
   build    Generate static HTML site from local JSON snapshot
+  eject    Export embedded templates and static assets to data/ for customization
   index    Index the generated static site using Pagefind
   serve    Start a local static HTTP preview server
   sync     Run full pipeline (backup -> build -> index)
-
 Environment Variables & .env Configuration:
   LINKDING_URL            Linkding base URL (e.g. https://bookmarks.example.com)
   LINKDING_TOKEN          Linkding REST API token
@@ -78,9 +81,9 @@ Environment Variables & .env Configuration:
   LINKDING_RECENT_LIMIT   Recent bookmarks count on home page (default: 50)
   LINKDING_RSS_LIMIT      Recent bookmarks count in RSS feeds (default: 15)
   LINKDING_SITE_TITLE     Site title for headers and feeds (default: Bookmarks)
-  LINKDING_TEMPLATES_DIR  Custom templates override directory
+  LINKDING_TEMPLATES_DIR  Custom templates override directory (default: data/templates if present)
+  LINKDING_STATIC_DIR     Custom static assets override directory (default: data/static if present)
   LINKDING_AUTO_INDEX     Run Pagefind search indexing after build (true/false)
-  LINKDING_SERVE_ADDR     Address to bind for local serve (default: :8080)
 `)
 }
 
@@ -200,6 +203,7 @@ func runBuild(args []string) error {
 	rssLimit := fs.Int("rss-limit", getEnvIntOrDefault("LINKDING_RSS_LIMIT", 15), "Number of recent items to include in RSS feeds (or LINKDING_RSS_LIMIT env)")
 	siteTitle := fs.String("site-title", getEnvOrDefault("LINKDING_SITE_TITLE", "Bookmarks"), "Site title for RSS feeds (or LINKDING_SITE_TITLE env)")
 	templatesDir := fs.String("templates-dir", getEnvOrDefault("LINKDING_TEMPLATES_DIR", ""), "Optional custom directory for overriding HTML templates (or LINKDING_TEMPLATES_DIR env)")
+	staticDir := fs.String("static-dir", getEnvOrDefault("LINKDING_STATIC_DIR", ""), "Optional custom directory for overriding static assets (or LINKDING_STATIC_DIR env)")
 	runIndexer := fs.Bool("index", getEnvBoolOrDefault("LINKDING_AUTO_INDEX", false), "Run Pagefind indexer automatically after build (or LINKDING_AUTO_INDEX env)")
 	fs.Parse(args)
 
@@ -217,6 +221,7 @@ func runBuild(args []string) error {
 		RSSLimit:     *rssLimit,
 		SiteTitle:    *siteTitle,
 		TemplatesDir: *templatesDir,
+		StaticDir:    *staticDir,
 	})
 	if err != nil {
 		return fmt.Errorf("initializing generator: %w", err)
@@ -291,4 +296,21 @@ func runSync(args []string) error {
 		buildArgs = append(buildArgs, "--index")
 	}
 	return runBuild(buildArgs)
+}
+
+func runEject(args []string) error {
+	fs := flag.NewFlagSet("eject", flag.ExitOnError)
+	targetDir := fs.String("target-dir", "data", "Target directory to export templates/ and static/ into")
+	fs.Parse(args)
+
+	log.Printf("Exporting embedded HTML templates and static assets into %s...", *targetDir)
+	if err := templates.ExportAssets(*targetDir); err != nil {
+		return fmt.Errorf("exporting assets: %w", err)
+	}
+
+	log.Printf("Assets successfully ejected!")
+	log.Printf("  Templates: %s/templates/", *targetDir)
+	log.Printf("  Static:    %s/static/", *targetDir)
+	log.Printf("Edit these files to customize your site. linkding-ssg will automatically use them when present.")
+	return nil
 }

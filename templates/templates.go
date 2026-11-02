@@ -6,6 +6,8 @@ import (
 	"html/template"
 	"io/fs"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -71,28 +73,31 @@ func funcMap(baseURL string) template.FuncMap {
 	}
 }
 
-// LoadTemplates loads templates either from an override directory or from embedded FS.
+// LoadTemplates loads templates from overrideDir if provided/existing, or embedded FS.
 func LoadTemplates(overrideDir string, baseURL string) (*TemplateSet, error) {
-	var targetFS fs.FS
-	var htmlDir string
-
+	// Determine if overrideDir exists and has files
+	useDisk := false
 	if overrideDir != "" {
-		targetFS = nil // use os files if custom dir given
-	} else {
-		targetFS = EmbeddedFS
-		htmlDir = "html"
+		if stat, err := os.Stat(overrideDir); err == nil && stat.IsDir() {
+			useDisk = true
+		}
+	}
+
+	readTemplateFile := func(filename string) ([]byte, error) {
+		if useDisk {
+			diskPath := filepath.Join(overrideDir, filename)
+			if content, err := os.ReadFile(diskPath); err == nil {
+				return content, nil
+			}
+		}
+		// Fall back to embedded FS
+		return fs.ReadFile(EmbeddedFS, "html/"+filename)
 	}
 
 	parseOne := func(name string, files ...string) (*template.Template, error) {
 		t := template.New(name).Funcs(funcMap(baseURL))
 		for _, f := range files {
-			var content []byte
-			var err error
-			if targetFS != nil {
-				content, err = fs.ReadFile(targetFS, htmlDir+"/"+f)
-			} else {
-				content, err = fs.ReadFile(EmbeddedFS, "html/"+f) // fallback or external
-			}
+			content, err := readTemplateFile(f)
 			if err != nil {
 				return nil, fmt.Errorf("reading template %s: %w", f, err)
 			}
@@ -103,7 +108,6 @@ func LoadTemplates(overrideDir string, baseURL string) (*TemplateSet, error) {
 		}
 		return t, nil
 	}
-
 	indexTmpl, err := parseOne("index.html", "base.html", "bookmark_card.html", "index.html")
 	if err != nil {
 		return nil, err

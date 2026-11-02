@@ -87,8 +87,22 @@ Start a local HTTP server at `http://localhost:8080`:
 ```bash
 ./linkding-ssg serve --site-dir dist --addr :8080
 ```
+### 5. Customizing Templates & Static Assets (`eject`)
 
-### 5. One-Shot Sync (Backup + Build + Index)
+By default, the binary is 100% self-contained and uses embedded templates and CSS. To customize them:
+
+```bash
+./linkding-ssg eject
+```
+
+This writes the default templates to `data/templates/` and static files to `data/static/`. Once these folders exist in `data/`, `linkding-ssg build` will automatically use them to override the embedded versions.
+
+You can also pass custom paths via CLI flags or environment variables:
+```bash
+./linkding-ssg build --templates-dir my-templates/ --static-dir my-static/
+```
+
+### 6. One-Shot Sync (Backup + Build + Index)
 
 Ideal for cron jobs or automated daily tasks:
 ```bash
@@ -113,6 +127,7 @@ Every CLI option can be configured via flags, environment variables, or a `.env`
 | `--recent-limit` | `LINKDING_RECENT_LIMIT` | `50` | Number of recent items on home page |
 | `--rss-limit` | `LINKDING_RSS_LIMIT` | `15` | Number of items in RSS feeds |
 | `--site-title` | `LINKDING_SITE_TITLE` | `Bookmarks` | Feed and site header title |
-| `--templates-dir` | `LINKDING_TEMPLATES_DIR` | `""` (embedded) | Path to custom HTML templates |
+| `--templates-dir` | `LINKDING_TEMPLATES_DIR` | `data/templates` (or embedded) | Path to custom HTML templates |
+| `--static-dir` | `LINKDING_STATIC_DIR` | `data/static` (or embedded) | Path to custom static assets |
 | `--index` | `LINKDING_AUTO_INDEX` | `false` | Run Pagefind indexer after build |
 | `--addr` | `LINKDING_SERVE_ADDR` | `:8080` | Address for `serve` preview |
