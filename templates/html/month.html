@@ -2,8 +2,23 @@
 
 {{define "content"}}
 <div class="intro-banner">
+  <nav class="month-pagination" data-pagefind-ignore style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; font-size:0.95rem;">
+    <div>
+      {{if .Month.Prev}}
+      <a href="{{monthURL .Month.Prev.Year .Month.Prev.Month}}">&larr; {{.Month.Prev.MonthName}} {{.Month.Prev.Year}}</a>
+      {{end}}
+    </div>
+    <div>
+      <a href="{{relURL "archive/"}}">&uarr; Timeline</a>
+    </div>
+    <div>
+      {{if .Month.Next}}
+      <a href="{{monthURL .Month.Next.Year .Month.Next.Month}}">{{.Month.Next.MonthName}} {{.Month.Next.Year}} &rarr;</a>
+      {{end}}
+    </div>
+  </nav>
   <h1>{{.Month.MonthName}} {{.Month.Year}}</h1>
-  <p>{{len .Month.Bookmarks}} bookmarks saved in {{.Month.MonthName}} {{.Month.Year}} &middot; <a href="{{relURL "archive/"}}">&larr; Back to Timeline</a></p>
+  <p>{{len .Month.Bookmarks}} bookmarks saved in {{.Month.MonthName}} {{.Month.Year}}</p>
 </div>
 
 <div class="bookmark-list">

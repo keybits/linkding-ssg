@@ -2,7 +2,14 @@
 
 {{define "content"}}
 <div class="intro-banner" data-pagefind-ignore>
-  <p><a href="{{relURL "/"}}">&larr; Home</a> &middot; Bookmark #{{.Bookmark.ID}}</p>
+  {{$dt := bookmarkDate .Bookmark}}
+  <p>
+    <a href="{{relURL "/"}}">&larr; Home</a>
+    {{if not $dt.IsZero}}
+    &middot; <a href="{{monthURL $dt.Year $dt.Month}}">&uarr; {{$dt.Month}} {{$dt.Year}}</a>
+    {{end}}
+    &middot; Bookmark #{{.Bookmark.ID}}
+  </p>
 </div>
 
 <!-- This single page is the primary Pagefind indexing unit -->

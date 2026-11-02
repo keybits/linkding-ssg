@@ -70,6 +70,28 @@ func TestBuildIndex(t *testing.T) {
 	if idx.Months[0].Key != "2025-02" {
 		t.Errorf("expected first month to be 2025-02, got %s", idx.Months[0].Key)
 	}
+	// Months order: 2025-02 (newest), 2025-01, 2024-12 (oldest)
+	// For 2025-02: Next is nil (no newer), Prev is 2025-01
+	if idx.Months[0].Next != nil {
+		t.Errorf("expected newest month to have Next=nil, got %+v", idx.Months[0].Next)
+	}
+	if idx.Months[0].Prev == nil || idx.Months[0].Prev.Key != "2025-01" {
+		t.Errorf("expected 2025-02 Prev to be 2025-01, got %+v", idx.Months[0].Prev)
+	}
+	// For 2025-01: Next is 2025-02, Prev is 2024-12
+	if idx.Months[1].Next == nil || idx.Months[1].Next.Key != "2025-02" {
+		t.Errorf("expected 2025-01 Next to be 2025-02, got %+v", idx.Months[1].Next)
+	}
+	if idx.Months[1].Prev == nil || idx.Months[1].Prev.Key != "2024-12" {
+		t.Errorf("expected 2025-01 Prev to be 2024-12, got %+v", idx.Months[1].Prev)
+	}
+	// For 2024-12: Prev is nil (no older), Next is 2025-01
+	if idx.Months[2].Prev != nil {
+		t.Errorf("expected oldest month to have Prev=nil, got %+v", idx.Months[2].Prev)
+	}
+	if idx.Months[2].Next == nil || idx.Months[2].Next.Key != "2025-01" {
+		t.Errorf("expected 2024-12 Next to be 2025-01, got %+v", idx.Months[2].Next)
+	}
 
 	// Verify Years
 	if len(idx.Years) != 2 {

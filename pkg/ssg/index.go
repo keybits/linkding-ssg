@@ -40,9 +40,10 @@ type MonthBucket struct {
 	Month     time.Month
 	Key       string // "2026-10"
 	Path      string // "archive/2026/10/"
+	Prev      *MonthBucket
+	Next      *MonthBucket
 	Bookmarks []linkding.Bookmark
 }
-
 func (m MonthBucket) MonthName() string {
 	return m.Month.String()
 }
@@ -142,7 +143,16 @@ func BuildIndex(bookmarks []linkding.Bookmark, recentLimit int) *ArchiveIndex {
 		return allMonths[i].Key > allMonths[j].Key
 	})
 
-	// Group months into YearBuckets
+	// Link Prev and Next month buckets (allMonths is sorted descending: 0 is newest, len-1 is oldest)
+	// Prev in time is older (i+1), Next in time is newer (i-1)
+	for i, m := range allMonths {
+		if i+1 < len(allMonths) {
+			m.Prev = allMonths[i+1]
+		}
+		if i-1 >= 0 {
+			m.Next = allMonths[i-1]
+		}
+	}
 	yearsMap := make(map[int]*YearBucket)
 	for _, m := range allMonths {
 		yb, exists := yearsMap[m.Year]
