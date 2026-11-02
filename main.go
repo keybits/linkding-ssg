@@ -84,8 +84,8 @@ Environment Variables & .env Configuration:
   LINKDING_TEMPLATES_DIR  Custom templates override directory (default: data/templates if present)
   LINKDING_STATIC_DIR     Custom static assets override directory (default: data/static if present)
   LINKDING_CONCURRENCY    Worker concurrency for site generation (default: CPU count)
+  LINKDING_PAGEFIND_PATH  Custom path to pagefind binary (default: auto/embedded)
   LINKDING_AUTO_INDEX     Run Pagefind search indexing after build (true/false)
-  LINKDING_SERVE_ADDR     Address to bind for local serve (default: :8080)
 `)
 }
 func getEnvOrDefault(key, fallback string) string {
@@ -206,8 +206,9 @@ func runBuild(args []string) error {
 	templatesDir := fs.String("templates-dir", getEnvOrDefault("LINKDING_TEMPLATES_DIR", ""), "Optional custom directory for overriding HTML templates (or LINKDING_TEMPLATES_DIR env)")
 	staticDir := fs.String("static-dir", getEnvOrDefault("LINKDING_STATIC_DIR", ""), "Optional custom directory for overriding static assets (or LINKDING_STATIC_DIR env)")
 	concurrency := fs.Int("concurrency", getEnvIntOrDefault("LINKDING_CONCURRENCY", 0), "Number of parallel workers (default CPU count, or LINKDING_CONCURRENCY env)")
+	pagefindPath := fs.String("pagefind-path", getEnvOrDefault("LINKDING_PAGEFIND_PATH", ""), "Path to pagefind executable (or LINKDING_PAGEFIND_PATH env)")
 	runIndexer := fs.Bool("index", getEnvBoolOrDefault("LINKDING_AUTO_INDEX", false), "Run Pagefind indexer automatically after build (or LINKDING_AUTO_INDEX env)")
-
+	fs.Parse(args)
 	log.Printf("Loading bookmarks from %s...", *input)
 	snapshot, err := storage.LoadSnapshot(*input)
 	if err != nil {
@@ -237,7 +238,10 @@ func runBuild(args []string) error {
 
 	if *runIndexer {
 		log.Println("Running Pagefind indexer...")
-		if err := pagefind.IndexSite(context.Background(), *outputDir); err != nil {
+		if err := pagefind.IndexSite(context.Background(), pagefind.IndexOptions{
+			SiteDir:      *outputDir,
+			PagefindPath: *pagefindPath,
+		}); err != nil {
 			return fmt.Errorf("indexing site: %w", err)
 		}
 		log.Println("Search indexing complete!")
@@ -249,9 +253,13 @@ func runBuild(args []string) error {
 func runIndex(args []string) error {
 	fs := flag.NewFlagSet("index", flag.ExitOnError)
 	siteDir := fs.String("site-dir", getEnvOrDefault("LINKDING_OUTPUT_DIR", "dist"), "Directory of static site to index (or LINKDING_OUTPUT_DIR env)")
+	pagefindPath := fs.String("pagefind-path", getEnvOrDefault("LINKDING_PAGEFIND_PATH", ""), "Path to pagefind executable (or LINKDING_PAGEFIND_PATH env)")
 	fs.Parse(args)
 	log.Printf("Indexing static site in %s using Pagefind...", *siteDir)
-	if err := pagefind.IndexSite(context.Background(), *siteDir); err != nil {
+	if err := pagefind.IndexSite(context.Background(), pagefind.IndexOptions{
+		SiteDir:      *siteDir,
+		PagefindPath: *pagefindPath,
+	}); err != nil {
 		return err
 	}
 	log.Println("Search indexing complete!")
@@ -278,8 +286,8 @@ func runSync(args []string) error {
 	rssLimit := fs.Int("rss-limit", getEnvIntOrDefault("LINKDING_RSS_LIMIT", 15), "Number of recent items to include in RSS feeds (or LINKDING_RSS_LIMIT env)")
 	siteTitle := fs.String("site-title", getEnvOrDefault("LINKDING_SITE_TITLE", "Bookmarks"), "Site title for RSS feeds (or LINKDING_SITE_TITLE env)")
 	concurrency := fs.Int("concurrency", getEnvIntOrDefault("LINKDING_CONCURRENCY", 0), "Number of parallel workers (or LINKDING_CONCURRENCY env)")
+	pagefindPath := fs.String("pagefind-path", getEnvOrDefault("LINKDING_PAGEFIND_PATH", ""), "Path to pagefind executable (or LINKDING_PAGEFIND_PATH env)")
 	skipIndex := fs.Bool("skip-index", false, "Skip Pagefind search indexing step")
-
 	backupArgs := []string{"--url", *apiURL, "--token", *token, "--output", *dataSnapshot}
 	if *forceFull {
 		backupArgs = append(backupArgs, "--full")
@@ -294,6 +302,9 @@ func runSync(args []string) error {
 		fmt.Sprintf("--rss-limit=%d", *rssLimit),
 		fmt.Sprintf("--site-title=%s", *siteTitle),
 		fmt.Sprintf("--concurrency=%d", *concurrency),
+	}
+	if *pagefindPath != "" {
+		buildArgs = append(buildArgs, "--pagefind-path", *pagefindPath)
 	}
 	if !*skipIndex {
 		buildArgs = append(buildArgs, "--index")
