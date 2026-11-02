@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -43,7 +44,8 @@ func Serve(siteDir string, addr string) error {
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
-		log.Printf("Serving %s at http://localhost%s (press Ctrl+C to stop)", absDir, addr)
+		displayURL := formatDisplayURL(addr)
+		log.Printf("Serving %s at %s (press Ctrl+C to stop)", absDir, displayURL)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("HTTP server error: %v", err)
 		}
@@ -54,6 +56,16 @@ func Serve(siteDir string, addr string) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
 	return server.Shutdown(ctx)
+}
+
+func formatDisplayURL(addr string) string {
+	if strings.HasPrefix(addr, ":") {
+		return fmt.Sprintf("http://localhost%s", addr)
+	}
+	if strings.HasPrefix(addr, "0.0.0.0:") {
+		port := strings.TrimPrefix(addr, "0.0.0.0:")
+		return fmt.Sprintf("http://localhost:%s (bound to 0.0.0.0:%s)", port, port)
+	}
+	return fmt.Sprintf("http://%s", addr)
 }
