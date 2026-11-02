@@ -37,22 +37,30 @@ func SyncAssets(ctx context.Context, bookmarks []linkding.Bookmark, opts SyncOpt
 
 	// 1. Gather all unique asset URLs and filenames needed
 	type assetTask struct {
-		remoteURL string
-		fileName  string
+		remoteURL  string
+		fileName   string
+		shardedRel string // e.g. "static/assets/a9/a9bee...png"
 	}
-
 	needed := make(map[string]assetTask)
 	for _, b := range bookmarks {
 		if b.FaviconURL != "" {
-			fn := extractFilename(b.FaviconURL)
+			fn := ExtractAssetFilename(b.FaviconURL)
 			if fn != "" {
-				needed[fn] = assetTask{remoteURL: b.FaviconURL, fileName: fn}
+				needed[fn] = assetTask{
+					remoteURL:  b.FaviconURL,
+					fileName:   fn,
+					shardedRel: ShardedAssetPath(b.FaviconURL),
+				}
 			}
 		}
 		if b.PreviewImageURL != "" {
-			fn := extractFilename(b.PreviewImageURL)
+			fn := ExtractAssetFilename(b.PreviewImageURL)
 			if fn != "" {
-				needed[fn] = assetTask{remoteURL: b.PreviewImageURL, fileName: fn}
+				needed[fn] = assetTask{
+					remoteURL:  b.PreviewImageURL,
+					fileName:   fn,
+					shardedRel: ShardedAssetPath(b.PreviewImageURL),
+				}
 			}
 		}
 	}
@@ -63,10 +71,10 @@ func SyncAssets(ctx context.Context, bookmarks []linkding.Bookmark, opts SyncOpt
 
 	// 2. Identify which assets are missing from OutputDir/static
 	var missing []assetTask
-	for fn, task := range needed {
-		destPath := filepath.Join(staticDir, fn)
+	for _, task := range needed {
+		destPath := filepath.Join(opts.OutputDir, task.shardedRel)
 		if stat, err := os.Stat(destPath); err == nil && stat.Size() > 0 {
-			continue // already present in output static
+			continue // already present in sharded output directory
 		}
 		missing = append(missing, task)
 	}
@@ -89,9 +97,9 @@ func SyncAssets(ctx context.Context, bookmarks []linkding.Bookmark, opts SyncOpt
 			}
 			candidate := filepath.Join(srcDir, task.fileName)
 			if stat, err := os.Stat(candidate); err == nil && !stat.IsDir() && stat.Size() > 0 {
-				destPath := filepath.Join(staticDir, task.fileName)
+				destPath := filepath.Join(opts.OutputDir, task.shardedRel)
+				_ = os.MkdirAll(filepath.Dir(destPath), 0755)
 				if err := copyFile(candidate, destPath); err == nil {
-					copied = true
 					copiedFromDisk++
 					break
 				}
@@ -146,7 +154,8 @@ func SyncAssets(ctx context.Context, bookmarks []linkding.Bookmark, opts SyncOpt
 				default:
 				}
 
-				destPath := filepath.Join(staticDir, task.fileName)
+				destPath := filepath.Join(opts.OutputDir, task.shardedRel)
+				_ = os.MkdirAll(filepath.Dir(destPath), 0755)
 				if err := downloadAsset(ctx, client, task.remoteURL, destPath, opts.ApiToken); err != nil {
 					atomic.AddUint64(&failed, 1)
 				} else {

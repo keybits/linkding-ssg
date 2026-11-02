@@ -4,13 +4,13 @@
     {{if .PreviewImageURL}}
     <div class="bookmark-thumbnail">
       <a href="{{.URL}}" target="_blank" rel="noopener noreferrer">
-        <img src="{{.PreviewImageURL}}" alt="" loading="lazy">
+        <img src="{{assetURL .PreviewImageURL}}" alt="" loading="lazy">
       </a>
     </div>
     {{end}}
     <div class="bookmark-details">
       <h2 class="bookmark-title-row">
-        {{if .FaviconURL}}<img src="{{.FaviconURL}}" class="bookmark-favicon" alt="" width="16" height="16" loading="lazy"> {{end}}<a href="{{.URL}}" class="bookmark-link" target="_blank" rel="noopener noreferrer">{{titleOrURL .}}</a>
+        {{if .FaviconURL}}<img src="{{assetURL .FaviconURL}}" class="bookmark-favicon" alt="" width="16" height="16" loading="lazy"> {{end}}<a href="{{.URL}}" class="bookmark-link" target="_blank" rel="noopener noreferrer">{{titleOrURL .}}</a>
       </h2>
       <div class="bookmark-url">{{.URL}}</div>
   {{if .DisplayDescription}}

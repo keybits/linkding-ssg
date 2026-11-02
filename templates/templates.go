@@ -1,7 +1,9 @@
 package templates
 
 import (
+	"crypto/sha256"
 	"embed"
+	"encoding/hex"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -72,6 +74,19 @@ func funcMap(baseURL string, siteTitle string) template.FuncMap {
 		"bookmarkURL": func(id int64) string {
 			shard := id / 1000
 			return relURL(fmt.Sprintf("b/%03d/%d/", shard, id))
+		},
+		"assetURL": func(rawURL string) string {
+			if rawURL == "" {
+				return ""
+			}
+			u, err := url.Parse(rawURL)
+			fn := filepath.Base(rawURL)
+			if err == nil {
+				fn = filepath.Base(u.Path)
+			}
+			hash := sha256.Sum256([]byte(fn))
+			prefix := hex.EncodeToString(hash[:1])
+			return relURL(fmt.Sprintf("static/assets/%s/%s", prefix, fn))
 		},
 		"tagURL": func(tag string) string {
 			safe := strings.ReplaceAll(tag, "/", "_")
