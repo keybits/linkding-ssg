@@ -91,6 +91,7 @@ Environment Variables & .env Configuration:
   LINKDING_TEMPLATES_DIR  Custom templates override directory (default: data/templates if present)
   LINKDING_STATIC_DIR     Custom static assets override directory (default: data/static if present)
   LINKDING_PAGES_DIR      Custom markdown pages directory (default: data/pages if present)
+  LINKDING_ASSET_DIRS     Comma-separated directories to search for local favicons/previews
   LINKDING_CONCURRENCY    Worker concurrency for site generation (default: CPU count)
   LINKDING_PAGEFIND_PATH  Custom path to pagefind binary (default: auto/embedded)
   LINKDING_AUTO_INDEX     Run Pagefind search indexing after build (true/false)
@@ -215,10 +216,11 @@ func runBuild(args []string) error {
 	staticDir := fs.String("static-dir", getEnvOrDefault("LINKDING_STATIC_DIR", ""), "Optional custom directory for overriding static assets (or LINKDING_STATIC_DIR env)")
 	pagesDir := fs.String("pages-dir", getEnvOrDefault("LINKDING_PAGES_DIR", ""), "Optional custom directory for markdown pages (or LINKDING_PAGES_DIR env)")
 	concurrency := fs.Int("concurrency", getEnvIntOrDefault("LINKDING_CONCURRENCY", 0), "Number of parallel workers (default CPU count, or LINKDING_CONCURRENCY env)")
+	assetDirsStr := fs.String("asset-dirs", getEnvOrDefault("LINKDING_ASSET_DIRS", ""), "Comma-separated local directories to search for favicons and preview images (or LINKDING_ASSET_DIRS env)")
+	token := fs.String("token", getEnvOrDefault("LINKDING_TOKEN", ""), "Linkding API token for downloading remote assets (or LINKDING_TOKEN env)")
 	pagefindPath := fs.String("pagefind-path", getEnvOrDefault("LINKDING_PAGEFIND_PATH", ""), "Path to pagefind executable (or LINKDING_PAGEFIND_PATH env)")
 	runIndexer := fs.Bool("index", getEnvBoolOrDefault("LINKDING_AUTO_INDEX", false), "Run Pagefind indexer automatically after build (or LINKDING_AUTO_INDEX env)")
 	fs.Parse(args)
-	log.Printf("Loading bookmarks from %s...", *input)
 	snapshot, err := storage.LoadSnapshot(*input)
 	if err != nil {
 		return fmt.Errorf("loading snapshot: %w", err)
@@ -235,6 +237,8 @@ func runBuild(args []string) error {
 		StaticDir:    *staticDir,
 		PagesDir:     *pagesDir,
 		Concurrency:  *concurrency,
+		AssetDirs:    parseCommaDirs(*assetDirsStr),
+		ApiToken:     *token,
 	})
 	if err != nil {
 		return fmt.Errorf("initializing generator: %w", err)
@@ -297,6 +301,7 @@ func runSync(args []string) error {
 	siteTitle := fs.String("site-title", getEnvOrDefault("LINKDING_SITE_TITLE", "Bookmarks"), "Site title for RSS feeds (or LINKDING_SITE_TITLE env)")
 	concurrency := fs.Int("concurrency", getEnvIntOrDefault("LINKDING_CONCURRENCY", 0), "Number of parallel workers (or LINKDING_CONCURRENCY env)")
 	pagesDir := fs.String("pages-dir", getEnvOrDefault("LINKDING_PAGES_DIR", ""), "Optional custom directory for markdown pages (or LINKDING_PAGES_DIR env)")
+	assetDirsStr := fs.String("asset-dirs", getEnvOrDefault("LINKDING_ASSET_DIRS", ""), "Comma-separated local directories to search for favicons and preview images (or LINKDING_ASSET_DIRS env)")
 	pagefindPath := fs.String("pagefind-path", getEnvOrDefault("LINKDING_PAGEFIND_PATH", ""), "Path to pagefind executable (or LINKDING_PAGEFIND_PATH env)")
 	skipIndex := fs.Bool("skip-index", false, "Skip Pagefind search indexing step")
 	fs.Parse(args)
@@ -322,6 +327,12 @@ func runSync(args []string) error {
 	if *pagefindPath != "" {
 		buildArgs = append(buildArgs, "--pagefind-path", *pagefindPath)
 	}
+	if *assetDirsStr != "" {
+		buildArgs = append(buildArgs, "--asset-dirs", *assetDirsStr)
+	}
+	if *token != "" {
+		buildArgs = append(buildArgs, "--token", *token)
+	}
 	if !*skipIndex {
 		buildArgs = append(buildArgs, "--index")
 	}
@@ -343,4 +354,18 @@ func runEject(args []string) error {
 	log.Printf("  Static:    %s/static/", *targetDir)
 	log.Printf("Edit these files to customize your site. linkding-ssg will automatically use them when present.")
 	return nil
+}
+
+func parseCommaDirs(s string) []string {
+	if strings.TrimSpace(s) == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	var res []string
+	for _, p := range parts {
+		if trimmed := strings.TrimSpace(p); trimmed != "" {
+			res = append(res, trimmed)
+		}
+	}
+	return res
 }

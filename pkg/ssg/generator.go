@@ -1,6 +1,7 @@
 package ssg
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"io"
@@ -25,11 +26,12 @@ type GeneratorOptions struct {
 	RSSLimit     int    // number of recent items to include in RSS feeds (default 15)
 	Concurrency  int    // number of parallel worker goroutines (default runtime.NumCPU())
 	SiteTitle    string // site title for RSS feeds
-	TemplatesDir string // optional template directory override
-	StaticDir    string // optional static assets directory override
-	PagesDir     string // optional markdown custom pages directory (default: data/pages)
+	TemplatesDir string   // optional template directory override
+	StaticDir    string   // optional static assets directory override
+	PagesDir     string   // optional markdown custom pages directory (default: data/pages)
+	AssetDirs    []string // optional local directories containing favicons and previews to sync
+	ApiToken     string   // optional Linkding API token for downloading remote assets
 }
-// Generator builds the static HTML site from linkding bookmarks.
 type Generator struct {
 	opts      GeneratorOptions
 	templates *templates.TemplateSet
@@ -113,6 +115,16 @@ func (g *Generator) Generate(bookmarks []linkding.Bookmark) error {
 	log.Printf("Copying static assets to %s/static...", g.opts.OutputDir)
 	if err := g.copyStaticAssets(); err != nil {
 		return fmt.Errorf("copying static assets: %w", err)
+	}
+
+	// 1b. Sync bookmark preview images and favicons into OutputDir/static
+	if err := SyncAssets(context.Background(), bookmarks, SyncOptions{
+		OutputDir:   g.opts.OutputDir,
+		AssetDirs:   g.opts.AssetDirs,
+		ApiToken:    g.opts.ApiToken,
+		Concurrency: g.opts.Concurrency,
+	}); err != nil {
+		log.Printf("Warning: asset sync encountered errors: %v", err)
 	}
 
 	// 2. Build indexed data structures
