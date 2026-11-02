@@ -83,10 +83,11 @@ Environment Variables & .env Configuration:
   LINKDING_SITE_TITLE     Site title for headers and feeds (default: Bookmarks)
   LINKDING_TEMPLATES_DIR  Custom templates override directory (default: data/templates if present)
   LINKDING_STATIC_DIR     Custom static assets override directory (default: data/static if present)
+  LINKDING_CONCURRENCY    Worker concurrency for site generation (default: CPU count)
   LINKDING_AUTO_INDEX     Run Pagefind search indexing after build (true/false)
+  LINKDING_SERVE_ADDR     Address to bind for local serve (default: :8080)
 `)
 }
-
 func getEnvOrDefault(key, fallback string) string {
 	if val := os.Getenv(key); strings.TrimSpace(val) != "" {
 		return val
@@ -204,8 +205,8 @@ func runBuild(args []string) error {
 	siteTitle := fs.String("site-title", getEnvOrDefault("LINKDING_SITE_TITLE", "Bookmarks"), "Site title for RSS feeds (or LINKDING_SITE_TITLE env)")
 	templatesDir := fs.String("templates-dir", getEnvOrDefault("LINKDING_TEMPLATES_DIR", ""), "Optional custom directory for overriding HTML templates (or LINKDING_TEMPLATES_DIR env)")
 	staticDir := fs.String("static-dir", getEnvOrDefault("LINKDING_STATIC_DIR", ""), "Optional custom directory for overriding static assets (or LINKDING_STATIC_DIR env)")
+	concurrency := fs.Int("concurrency", getEnvIntOrDefault("LINKDING_CONCURRENCY", 0), "Number of parallel workers (default CPU count, or LINKDING_CONCURRENCY env)")
 	runIndexer := fs.Bool("index", getEnvBoolOrDefault("LINKDING_AUTO_INDEX", false), "Run Pagefind indexer automatically after build (or LINKDING_AUTO_INDEX env)")
-	fs.Parse(args)
 
 	log.Printf("Loading bookmarks from %s...", *input)
 	snapshot, err := storage.LoadSnapshot(*input)
@@ -222,6 +223,7 @@ func runBuild(args []string) error {
 		SiteTitle:    *siteTitle,
 		TemplatesDir: *templatesDir,
 		StaticDir:    *staticDir,
+		Concurrency:  *concurrency,
 	})
 	if err != nil {
 		return fmt.Errorf("initializing generator: %w", err)
@@ -275,8 +277,8 @@ func runSync(args []string) error {
 	forceFull := fs.Bool("full", getEnvBoolOrDefault("LINKDING_FULL_BACKUP", false), "Force a full backup instead of incremental (or LINKDING_FULL_BACKUP env)")
 	rssLimit := fs.Int("rss-limit", getEnvIntOrDefault("LINKDING_RSS_LIMIT", 15), "Number of recent items to include in RSS feeds (or LINKDING_RSS_LIMIT env)")
 	siteTitle := fs.String("site-title", getEnvOrDefault("LINKDING_SITE_TITLE", "Bookmarks"), "Site title for RSS feeds (or LINKDING_SITE_TITLE env)")
+	concurrency := fs.Int("concurrency", getEnvIntOrDefault("LINKDING_CONCURRENCY", 0), "Number of parallel workers (or LINKDING_CONCURRENCY env)")
 	skipIndex := fs.Bool("skip-index", false, "Skip Pagefind search indexing step")
-	fs.Parse(args)
 
 	backupArgs := []string{"--url", *apiURL, "--token", *token, "--output", *dataSnapshot}
 	if *forceFull {
@@ -291,6 +293,7 @@ func runSync(args []string) error {
 		"--base-url", *baseURL,
 		fmt.Sprintf("--rss-limit=%d", *rssLimit),
 		fmt.Sprintf("--site-title=%s", *siteTitle),
+		fmt.Sprintf("--concurrency=%d", *concurrency),
 	}
 	if !*skipIndex {
 		buildArgs = append(buildArgs, "--index")

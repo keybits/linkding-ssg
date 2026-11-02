@@ -8,6 +8,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/lmorchard/linkding-ssg/pkg/linkding"
@@ -20,6 +23,7 @@ type GeneratorOptions struct {
 	BaseURL      string
 	RecentLimit  int
 	RSSLimit     int    // number of recent items to include in RSS feeds (default 15)
+	Concurrency  int    // number of parallel worker goroutines (default runtime.NumCPU())
 	SiteTitle    string // site title for RSS feeds
 	TemplatesDir string // optional template directory override
 	StaticDir    string // optional static assets directory override
@@ -41,6 +45,9 @@ func NewGenerator(opts GeneratorOptions) (*Generator, error) {
 	}
 	if opts.RSSLimit <= 0 {
 		opts.RSSLimit = 15
+	}
+	if opts.Concurrency <= 0 {
+		opts.Concurrency = runtime.NumCPU()
 	}
 	if opts.SiteTitle == "" {
 		opts.SiteTitle = "Bookmarks"
@@ -129,26 +136,9 @@ func (g *Generator) Generate(bookmarks []linkding.Bookmark) error {
 		return fmt.Errorf("rendering tags: %w", err)
 	}
 
-	// 7. Render Individual Tag Archives (tags/{tag}/index.html)
-	log.Printf("Rendering %d tag detail pages and RSS feeds...", len(idx.Tags))
-	for _, tag := range idx.Tags {
-		tagSlug := SafeTagSlug(tag.Name)
-		tagPath := filepath.Join("tags", tagSlug, "index.html")
-		if err := g.renderFile(tagPath, g.templates.TagDetailTemplate, map[string]any{
-			"Tag":      tag,
-			"RSSLimit": g.opts.RSSLimit,
-		}); err != nil {
-			return fmt.Errorf("rendering tag detail %s: %w", tag.Name, err)
-		}
-
-		// Tag RSS feed (tags/{tag}/feed.xml)
-		tagFeedPath := filepath.Join(g.opts.OutputDir, "tags", tagSlug, "feed.xml")
-		tagFeedTitle := fmt.Sprintf("%s - #%s", g.opts.SiteTitle, tag.Name)
-		tagFeedLink := FullURL(g.opts.BaseURL, fmt.Sprintf("tags/%s/", tagSlug))
-		tagFeedDesc := fmt.Sprintf("Recent bookmarks tagged #%s", tag.Name)
-		if err := GenerateRSS(tagFeedPath, tagFeedTitle, tagFeedLink, tagFeedDesc, tag.Bookmarks, g.opts.RSSLimit); err != nil {
-			return fmt.Errorf("generating tag RSS for %s: %w", tag.Name, err)
-		}
+	log.Printf("Rendering %d tag detail pages and RSS feeds (using %d workers)...", len(idx.Tags), g.opts.Concurrency)
+	if err := g.renderTagsParallel(idx.Tags); err != nil {
+		return fmt.Errorf("rendering tags parallel: %w", err)
 	}
 
 	// Overall Recent RSS feed (feed.xml)
@@ -161,27 +151,12 @@ func (g *Generator) Generate(bookmarks []linkding.Bookmark) error {
 		return fmt.Errorf("generating main RSS: %w", err)
 	}
 
-	// 8. Render Sharded Individual Bookmark Permalinks (b/{shard}/{id}/index.html)
+	// 8. Render Sharded Individual Bookmark Permalinks concurrently
 	totalBookmarks := len(idx.AllBookmarks)
-	log.Printf("Rendering %d individual sharded bookmark permalinks...", totalBookmarks)
-	reportInterval := 5000
-	if totalBookmarks < 5000 {
-		reportInterval = 1000
+	log.Printf("Rendering %d individual sharded bookmark permalinks (using %d workers)...", totalBookmarks, g.opts.Concurrency)
+	if err := g.renderBookmarksParallel(idx.AllBookmarks); err != nil {
+		return fmt.Errorf("rendering bookmarks parallel: %w", err)
 	}
-	for i, b := range idx.AllBookmarks {
-		if i > 0 && i%reportInterval == 0 {
-			percent := float64(i) / float64(totalBookmarks) * 100
-			log.Printf("Rendered %d / %d permalinks (%.1f%%)...", i, totalBookmarks, percent)
-		}
-		bmRelPath := ShardedIDFilePath(b.ID)
-		if err := g.renderFile(bmRelPath, g.templates.BookmarkTemplate, map[string]any{
-			"Bookmark": b,
-		}); err != nil {
-			return fmt.Errorf("rendering bookmark %d: %w", b.ID, err)
-		}
-	}
-
-	// 9. Render Search Page (search/index.html)
 	log.Println("Rendering search page...")
 	if err := g.renderFile(filepath.Join("search", "index.html"), g.templates.SearchTemplate, map[string]any{}); err != nil {
 		return fmt.Errorf("rendering search page: %w", err)
@@ -211,6 +186,127 @@ func (g *Generator) renderFile(relPath string, tmpl *template.Template, data any
 	}
 
 	return nil
+}
+
+func (g *Generator) renderTagsParallel(tags []*TagBucket) error {
+	concurrency := g.opts.Concurrency
+	if concurrency <= 0 {
+		concurrency = runtime.NumCPU()
+	}
+	if concurrency > len(tags) {
+		concurrency = len(tags)
+	}
+
+	ch := make(chan *TagBucket, len(tags))
+	for _, tag := range tags {
+		ch <- tag
+	}
+	close(ch)
+
+	var wg sync.WaitGroup
+	var firstErr error
+	var errMu sync.Mutex
+
+	for w := 0; w < concurrency; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for tag := range ch {
+				tagSlug := SafeTagSlug(tag.Name)
+				tagPath := filepath.Join("tags", tagSlug, "index.html")
+				if err := g.renderFile(tagPath, g.templates.TagDetailTemplate, map[string]any{
+					"Tag":      tag,
+					"RSSLimit": g.opts.RSSLimit,
+				}); err != nil {
+					errMu.Lock()
+					if firstErr == nil {
+						firstErr = fmt.Errorf("rendering tag %s: %w", tag.Name, err)
+					}
+					errMu.Unlock()
+					return
+				}
+
+				// Tag RSS feed (tags/{tag}/feed.xml)
+				tagFeedPath := filepath.Join(g.opts.OutputDir, "tags", tagSlug, "feed.xml")
+				tagFeedTitle := fmt.Sprintf("%s - #%s", g.opts.SiteTitle, tag.Name)
+				tagFeedLink := FullURL(g.opts.BaseURL, fmt.Sprintf("tags/%s/", tagSlug))
+				tagFeedDesc := fmt.Sprintf("Recent bookmarks tagged #%s", tag.Name)
+				if err := GenerateRSS(tagFeedPath, tagFeedTitle, tagFeedLink, tagFeedDesc, tag.Bookmarks, g.opts.RSSLimit); err != nil {
+					errMu.Lock()
+					if firstErr == nil {
+						firstErr = fmt.Errorf("generating tag RSS for %s: %w", tag.Name, err)
+					}
+					errMu.Unlock()
+					return
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+	return firstErr
+}
+
+func (g *Generator) renderBookmarksParallel(bookmarks []linkding.Bookmark) error {
+	total := len(bookmarks)
+	if total == 0 {
+		return nil
+	}
+
+	concurrency := g.opts.Concurrency
+	if concurrency <= 0 {
+		concurrency = runtime.NumCPU()
+	}
+	if concurrency > total {
+		concurrency = total
+	}
+
+	ch := make(chan linkding.Bookmark, concurrency*4)
+	go func() {
+		for _, b := range bookmarks {
+			ch <- b
+		}
+		close(ch)
+	}()
+
+	var wg sync.WaitGroup
+	var firstErr error
+	var errMu sync.Mutex
+	var processed uint64
+
+	reportInterval := uint64(5000)
+	if total < 5000 {
+		reportInterval = 1000
+	}
+
+	for w := 0; w < concurrency; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for b := range ch {
+				bmRelPath := ShardedIDFilePath(b.ID)
+				if err := g.renderFile(bmRelPath, g.templates.BookmarkTemplate, map[string]any{
+					"Bookmark": b,
+				}); err != nil {
+					errMu.Lock()
+					if firstErr == nil {
+						firstErr = fmt.Errorf("rendering bookmark %d: %w", b.ID, err)
+					}
+					errMu.Unlock()
+					return
+				}
+
+				n := atomic.AddUint64(&processed, 1)
+				if n%reportInterval == 0 {
+					percent := float64(n) / float64(total) * 100
+					log.Printf("Rendered %d / %d permalinks (%.1f%%)...", n, total, percent)
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+	return firstErr
 }
 
 func (g *Generator) copyStaticAssets() error {
