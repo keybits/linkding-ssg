@@ -1,0 +1,11 @@
+{{define "title"}}{{.Page.Title}} &middot; {{siteTitle}}{{end}}
+
+{{define "content"}}
+<div class="intro-banner" data-pagefind-ignore>
+  <h1>{{.Page.Title}}</h1>
+</div>
+
+<article class="custom-page-content" data-pagefind-body>
+  {{.Page.ContentHTML}}
+</article>
+{{end}}

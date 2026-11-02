@@ -26,8 +26,14 @@ type TemplateSet struct {
 	TagDetailTemplate *template.Template
 	BookmarkTemplate  *template.Template
 	SearchTemplate    *template.Template
+	PageTemplate      *template.Template
 }
 
+// NavPage is a lightweight representation of custom pages for navigation links.
+type NavPage struct {
+	Title string
+	Path  string
+}
 func funcMap(baseURL string, siteTitle string) template.FuncMap {
 	if siteTitle == "" {
 		siteTitle = "Bookmarks"
@@ -44,6 +50,9 @@ func funcMap(baseURL string, siteTitle string) template.FuncMap {
 		"relURL": relURL,
 		"siteTitle": func() string {
 			return siteTitle
+		},
+		"sitePages": func() []NavPage {
+			return nil // overridden per generator
 		},
 		"formatDate": func(t time.Time) string {
 			if t.IsZero() || t.Year() <= 1 {
@@ -79,7 +88,7 @@ func funcMap(baseURL string, siteTitle string) template.FuncMap {
 }
 
 // LoadTemplates loads templates from overrideDir if provided/existing, or embedded FS.
-func LoadTemplates(overrideDir string, baseURL string, siteTitle string) (*TemplateSet, error) {
+func LoadTemplates(overrideDir string, baseURL string, siteTitle string, pages []NavPage) (*TemplateSet, error) {
 	useDisk := false
 	if overrideDir != "" {
 		if stat, err := os.Stat(overrideDir); err == nil && stat.IsDir() {
@@ -99,7 +108,11 @@ func LoadTemplates(overrideDir string, baseURL string, siteTitle string) (*Templ
 	}
 
 	parseOne := func(name string, files ...string) (*template.Template, error) {
-		t := template.New(name).Funcs(funcMap(baseURL, siteTitle))
+		funcs := funcMap(baseURL, siteTitle)
+		funcs["sitePages"] = func() []NavPage {
+			return pages
+		}
+		t := template.New(name).Funcs(funcs)
 		for _, f := range files {
 			content, err := readTemplateFile(f)
 			if err != nil {
@@ -147,6 +160,11 @@ func LoadTemplates(overrideDir string, baseURL string, siteTitle string) (*Templ
 		return nil, err
 	}
 
+	pageTmpl, err := parseOne("page.html", "base.html", "page.html")
+	if err != nil {
+		return nil, err
+	}
+
 	return &TemplateSet{
 		IndexTemplate:     indexTmpl,
 		ArchiveTemplate:   archiveTmpl,
@@ -155,5 +173,6 @@ func LoadTemplates(overrideDir string, baseURL string, siteTitle string) (*Templ
 		TagDetailTemplate: tagDetailTmpl,
 		BookmarkTemplate:  bookmarkTmpl,
 		SearchTemplate:    searchTmpl,
+		PageTemplate:      pageTmpl,
 	}, nil
 }

@@ -129,6 +129,7 @@ Every CLI option can be configured via flags, environment variables, or a `.env`
 | `--site-title` | `LINKDING_SITE_TITLE` | `Bookmarks` | Feed and site header title |
 | `--templates-dir` | `LINKDING_TEMPLATES_DIR` | `data/templates` (or embedded) | Path to custom HTML templates |
 | `--static-dir` | `LINKDING_STATIC_DIR` | `data/static` (or embedded) | Path to custom static assets |
+| `--pages-dir` | `LINKDING_PAGES_DIR` | `data/pages` | Custom markdown pages directory |
 | `--concurrency` | `LINKDING_CONCURRENCY` | System CPU count | Number of parallel worker goroutines |
 | `--pagefind-path` | `LINKDING_PAGEFIND_PATH` | Embedded standalone binary | Path to pagefind executable |
 | `--index` | `LINKDING_AUTO_INDEX` | `false` | Run Pagefind indexer after build |

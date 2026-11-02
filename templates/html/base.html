@@ -16,6 +16,9 @@
         <a href="{{relURL "archive/"}}">Timeline</a>
         <a href="{{relURL "tags/"}}">Tags</a>
         <a href="{{relURL "search/"}}">Search</a>
+        {{range sitePages}}
+        <a href="{{relURL .Path}}">{{.Title}}</a>
+        {{end}}
       </nav>
     </header>
 

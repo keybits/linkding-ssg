@@ -33,10 +33,14 @@ func TestGenerator_Generate(t *testing.T) {
 			DateCreated: time.Date(2025, 5, 20, 10, 0, 0, 0, time.UTC),
 		},
 	}
+	pagesDir := filepath.Join(tempDir, "pages")
+	_ = os.MkdirAll(pagesDir, 0755)
+	_ = os.WriteFile(filepath.Join(pagesDir, "about.md"), []byte("# About Us\n\nThis is the about page."), 0644)
 
 	gen, err := NewGenerator(GeneratorOptions{
 		OutputDir:   outDir,
 		RecentLimit: 10,
+		PagesDir:    pagesDir,
 	})
 	if err != nil {
 		t.Fatalf("NewGenerator failed: %v", err)
@@ -101,5 +105,21 @@ func TestGenerator_Generate(t *testing.T) {
 	searchPath := filepath.Join(outDir, "search", "index.html")
 	if _, err := os.Stat(searchPath); err != nil {
 		t.Errorf("search/index.html missing: %v", err)
+	}
+
+	// Verify custom about page was generated
+	aboutPath := filepath.Join(outDir, "about", "index.html")
+	aboutBytes, err := os.ReadFile(aboutPath)
+	if err != nil {
+		t.Errorf("about/index.html missing: %v", err)
+	} else {
+		if !strings.Contains(string(aboutBytes), "This is the about page.") {
+			t.Errorf("about page missing content")
+		}
+	}
+
+	// Verify index.html links to custom page in header
+	if !strings.Contains(string(indexBytes), `<a href="/about/">About Us</a>`) {
+		t.Errorf("header missing link to custom page About Us: %s", string(indexBytes))
 	}
 }

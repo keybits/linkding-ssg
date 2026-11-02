@@ -27,8 +27,8 @@ type GeneratorOptions struct {
 	SiteTitle    string // site title for RSS feeds
 	TemplatesDir string // optional template directory override
 	StaticDir    string // optional static assets directory override
+	PagesDir     string // optional markdown custom pages directory (default: data/pages)
 }
-
 // Generator builds the static HTML site from linkding bookmarks.
 type Generator struct {
 	opts      GeneratorOptions
@@ -68,8 +68,28 @@ func NewGenerator(opts GeneratorOptions) (*Generator, error) {
 			opts.StaticDir = defaultStatic
 		}
 	}
+	if opts.PagesDir == "" {
+		defaultPages := filepath.Join("data", "pages")
+		if stat, err := os.Stat(defaultPages); err == nil && stat.IsDir() {
+			opts.PagesDir = defaultPages
+		}
+	}
 
-	tmplSet, err := templates.LoadTemplates(opts.TemplatesDir, opts.BaseURL, opts.SiteTitle)
+	// Load custom pages to populate navigation links in templates
+	customPages, err := LoadPages(opts.PagesDir)
+	if err != nil {
+		return nil, fmt.Errorf("loading custom pages: %w", err)
+	}
+
+	navPages := make([]templates.NavPage, len(customPages))
+	for i, cp := range customPages {
+		navPages[i] = templates.NavPage{
+			Title: cp.Title,
+			Path:  cp.Path,
+		}
+	}
+
+	tmplSet, err := templates.LoadTemplates(opts.TemplatesDir, opts.BaseURL, opts.SiteTitle, navPages)
 	if err != nil {
 		return nil, fmt.Errorf("loading templates: %w", err)
 	}
@@ -162,12 +182,28 @@ func (g *Generator) Generate(bookmarks []linkding.Bookmark) error {
 		return fmt.Errorf("rendering search page: %w", err)
 	}
 
+	// 10. Render Custom Markdown Pages (e.g. data/pages/about.md -> about/index.html)
+	customPages, err := LoadPages(g.opts.PagesDir)
+	if err != nil {
+		return fmt.Errorf("loading custom pages: %w", err)
+	}
+	if len(customPages) > 0 {
+		log.Printf("Rendering %d custom markdown page(s)...", len(customPages))
+		for _, page := range customPages {
+			pageRelPath := filepath.Join(page.Slug, "index.html")
+			if err := g.renderFile(pageRelPath, g.templates.PageTemplate, map[string]any{
+				"Page": page,
+			}); err != nil {
+				return fmt.Errorf("rendering custom page %s: %w", page.Slug, err)
+			}
+		}
+	}
+
 	elapsed := time.Since(start)
-	totalPages := 1 /*index*/ + 1 /*archive*/ + len(idx.Months) + 1 /*tags*/ + len(idx.Tags) + len(idx.AllBookmarks) + 1 /*search*/
+	totalPages := 1 /*index*/ + 1 /*archive*/ + len(idx.Months) + 1 /*tags*/ + len(idx.Tags) + len(idx.AllBookmarks) + 1 /*search*/ + len(customPages)
 	log.Printf("Static generation finished in %v: wrote %d HTML pages to %s.", elapsed.Round(time.Millisecond), totalPages, g.opts.OutputDir)
 	return nil
 }
-
 func (g *Generator) renderFile(relPath string, tmpl *template.Template, data any) error {
 	fullPath := filepath.Join(g.opts.OutputDir, relPath)
 	dir := filepath.Dir(fullPath)
