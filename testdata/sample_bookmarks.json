@@ -1,0 +1,47 @@
+{
+  "exported_at": "2026-11-01T12:00:00Z",
+  "server_url": "https://linkding.example.com",
+  "total_count": 4,
+  "bookmarks": [
+    {
+      "id": 1,
+      "url": "https://go.dev/",
+      "title": "The Go Programming Language",
+      "description": "Build simple, secure, scalable systems with Go.",
+      "notes": "Official Go documentation and download page.",
+      "tag_names": ["golang", "programming", "backend"],
+      "date_created": "2026-10-15T10:00:00Z",
+      "date_modified": "2026-10-15T10:00:00Z"
+    },
+    {
+      "id": 2,
+      "url": "https://pagefind.app/",
+      "title": "Pagefind — Static Search Engine",
+      "description": "Pagefind is a fully client-side search library that aims to scale well on large sites.",
+      "notes": "Used for linkding-ssg search indexing.",
+      "tag_names": ["search", "static-sites", "web"],
+      "date_created": "2026-10-20T14:30:00Z",
+      "date_modified": "2026-10-20T14:30:00Z"
+    },
+    {
+      "id": 3,
+      "url": "https://linkding.link/",
+      "title": "linkding — Self-hosted Bookmark Service",
+      "description": "A minimal, fast, and easy to set up bookmark manager designed to run in Docker.",
+      "notes": "",
+      "tag_names": ["selfhosted", "bookmarks"],
+      "date_created": "2026-09-05T08:15:00Z",
+      "date_modified": "2026-09-05T08:15:00Z"
+    },
+    {
+      "id": 4,
+      "url": "https://pinboard.in/",
+      "title": "Pinboard — Social Bookmarking for Introverts",
+      "description": "Fast, no-nonsense bookmarking.",
+      "notes": "Classic bookmark inspiration.",
+      "tag_names": ["bookmarks"],
+      "date_created": "2025-05-12T16:45:00Z",
+      "date_modified": "2025-05-12T16:45:00Z"
+    }
+  ]
+}

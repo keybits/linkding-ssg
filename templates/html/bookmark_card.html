@@ -1,0 +1,35 @@
+{{define "bookmark_card"}}
+<article class="bookmark-card" data-pagefind-ignore>
+  <h2 class="bookmark-title-row">
+    <a href="{{.URL}}" class="bookmark-link" target="_blank" rel="noopener noreferrer">{{titleOrURL .}}</a>
+  </h2>
+  <div class="bookmark-url">{{.URL}}</div>
+
+  {{if .DisplayDescription}}
+  <div class="bookmark-desc">{{.DisplayDescription}}</div>
+  {{end}}
+
+  {{if .Notes}}
+  <div class="bookmark-notes">{{.Notes}}</div>
+  {{end}}
+
+  <div class="bookmark-meta">
+    <time datetime="{{formatDateTime .DateCreated}}">{{formatDate .DateCreated}}</time>
+
+    {{if .TagNames}}
+    <div class="bookmark-tags">
+      {{range .TagNames}}
+      <a href="{{tagURL .}}" class="tag-badge">#{{.}}</a>
+      {{end}}
+    </div>
+    {{end}}
+
+    <div class="bookmark-actions">
+      {{if .WebArchiveSnapshotURL}}
+      <a href="{{.WebArchiveSnapshotURL}}" target="_blank" rel="noopener" title="Internet Archive Snapshot">archive.org</a>
+      {{end}}
+      <a href="{{bookmarkURL .ID}}" title="Permalink to bookmark #{{.ID}}">#{{.ID}}</a>
+    </div>
+  </div>
+</article>
+{{end}}

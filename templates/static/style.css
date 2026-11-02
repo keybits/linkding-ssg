@@ -1,0 +1,293 @@
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --bg-color: #fdfdfd;
+  --text-color: #1a1a1a;
+  --text-muted: #666666;
+  --border-color: #e5e5e5;
+  --card-bg: #ffffff;
+  --link-color: #0366d6;
+  --link-hover: #024ea2;
+  --tag-bg: #eef2f8;
+  --tag-text: #2c5282;
+  --code-bg: #f4f4f5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-color: #0f141c;
+    --text-color: #e6edf3;
+    --text-muted: #8b949e;
+    --border-color: #21262d;
+    --card-bg: #161b22;
+    --link-color: #58a6ff;
+    --link-hover: #79c0ff;
+    --tag-bg: #1c2738;
+    --tag-text: #79c0ff;
+    --code-bg: #1c2128;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  line-height: 1.5;
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+
+header.site-header {
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 1.25rem;
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.site-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-color);
+  text-decoration: none;
+}
+
+nav.site-nav {
+  display: flex;
+  gap: 1.2rem;
+  font-size: 0.95rem;
+}
+
+nav.site-nav a {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+nav.site-nav a:hover,
+nav.site-nav a.active {
+  color: var(--link-color);
+}
+
+.intro-banner {
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.intro-banner h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.75rem;
+}
+
+.intro-banner p {
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.bookmark-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.bookmark-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.25rem;
+  transition: border-color 0.15s ease;
+}
+
+.bookmark-card:hover {
+  border-color: var(--link-color);
+}
+
+.bookmark-title-row {
+  margin: 0 0 0.4rem 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.bookmark-link {
+  color: var(--link-color);
+  text-decoration: none;
+  word-break: break-word;
+}
+
+.bookmark-link:hover {
+  text-decoration: underline;
+}
+
+.bookmark-url {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  word-break: break-all;
+  margin-bottom: 0.6rem;
+}
+
+.bookmark-desc {
+  font-size: 0.95rem;
+  color: var(--text-color);
+  margin: 0.5rem 0;
+  white-space: pre-line;
+}
+
+.bookmark-notes {
+  background: var(--code-bg);
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.88rem;
+  margin: 0.6rem 0;
+  border-left: 3px solid var(--link-color);
+}
+
+.bookmark-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-top: 0.8rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.bookmark-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.tag-badge {
+  background-color: var(--tag-bg);
+  color: var(--tag-text);
+  padding: 0.15rem 0.55rem;
+  border-radius: 9999px;
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.tag-badge:hover {
+  filter: brightness(0.92);
+}
+
+.bookmark-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.bookmark-actions a {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.bookmark-actions a:hover {
+  color: var(--link-color);
+  text-decoration: underline;
+}
+
+/* Archives & Tag Cloud */
+.timeline-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+.year-card {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.25rem;
+  background: var(--card-bg);
+}
+
+.year-card h2 {
+  margin: 0 0 0.8rem 0;
+  font-size: 1.25rem;
+}
+
+.month-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.month-list a {
+  color: var(--link-color);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.month-list a:hover {
+  text-decoration: underline;
+}
+
+.month-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1.5rem;
+}
+
+.tag-pill {
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  text-decoration: none;
+  color: var(--text-color);
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tag-pill:hover {
+  border-color: var(--link-color);
+  color: var(--link-color);
+}
+
+.tag-pill .count {
+  font-size: 0.75rem;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+  padding: 0.1rem 0.4rem;
+  border-radius: 9999px;
+}
+
+footer.site-footer {
+  border-top: 1px solid var(--border-color);
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+#search-box {
+  margin-top: 1.5rem;
+}

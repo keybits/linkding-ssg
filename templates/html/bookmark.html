@@ -1,0 +1,46 @@
+{{define "title"}}{{titleOrURL .Bookmark}}{{end}}
+
+{{define "content"}}
+<div class="intro-banner" data-pagefind-ignore>
+  <p><a href="{{relURL "/"}}">&larr; Home</a> &middot; Bookmark #{{.Bookmark.ID}}</p>
+</div>
+
+<!-- This single page is the primary Pagefind indexing unit -->
+<article class="bookmark-card" data-pagefind-body>
+  <h1 class="bookmark-title-row" data-pagefind-meta="title" style="font-size:1.6rem; margin-bottom: 0.8rem;">
+    <a href="{{.Bookmark.URL}}" class="bookmark-link" target="_blank" rel="noopener noreferrer">{{titleOrURL .Bookmark}}</a>
+  </h1>
+  <div class="bookmark-url" style="font-size:0.95rem; margin-bottom: 1.25rem;">
+    <a href="{{.Bookmark.URL}}" target="_blank" rel="noopener noreferrer" style="color:var(--text-muted)">{{.Bookmark.URL}}</a>
+  </div>
+
+  {{if .Bookmark.DisplayDescription}}
+  <div class="bookmark-desc" style="font-size:1.1rem; line-height:1.6;">{{.Bookmark.DisplayDescription}}</div>
+  {{end}}
+
+  {{if .Bookmark.Notes}}
+  <div class="bookmark-notes" style="margin-top:1.25rem;">
+    <strong>Notes:</strong>
+    <p style="margin: 0.5rem 0 0 0;">{{.Bookmark.Notes}}</p>
+  </div>
+  {{end}}
+
+  <div class="bookmark-meta" style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+    <span>Saved on <time datetime="{{formatDateTime .Bookmark.DateCreated}}">{{formatDate .Bookmark.DateCreated}}</time></span>
+
+    {{if .Bookmark.TagNames}}
+    <div class="bookmark-tags">
+      {{range .Bookmark.TagNames}}
+      <a href="{{tagURL .}}" class="tag-badge" data-pagefind-filter="tag">#{{.}}</a>
+      {{end}}
+    </div>
+    {{end}}
+
+    <div class="bookmark-actions">
+      {{if .Bookmark.WebArchiveSnapshotURL}}
+      <a href="{{.Bookmark.WebArchiveSnapshotURL}}" target="_blank" rel="noopener">Internet Archive</a>
+      {{end}}
+    </div>
+  </div>
+</article>
+{{end}}

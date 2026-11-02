@@ -1,0 +1,14 @@
+{{define "title"}}{{.Month.MonthName}} {{.Month.Year}} Archive{{end}}
+
+{{define "content"}}
+<div class="intro-banner">
+  <h1>{{.Month.MonthName}} {{.Month.Year}}</h1>
+  <p>{{len .Month.Bookmarks}} bookmarks saved in {{.Month.MonthName}} {{.Month.Year}} &middot; <a href="{{relURL "archive/"}}">&larr; Back to Timeline</a></p>
+</div>
+
+<div class="bookmark-list">
+  {{range .Month.Bookmarks}}
+    {{template "bookmark_card" .}}
+  {{end}}
+</div>
+{{end}}

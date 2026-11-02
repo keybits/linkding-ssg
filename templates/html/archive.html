@@ -1,0 +1,24 @@
+{{define "title"}}Timeline Archive{{end}}
+
+{{define "content"}}
+<div class="intro-banner">
+  <h1>Timeline Archive</h1>
+  <p>Monthly archive of all saved bookmarks. Individual past months are stable and append-free.</p>
+</div>
+
+<div class="timeline-grid">
+  {{range .Years}}
+  <section class="year-card">
+    <h2>{{.Year}} <small style="font-size:0.8rem; font-weight:normal; color:var(--text-muted)">({{.Total}} links)</small></h2>
+    <ul class="month-list">
+      {{range .Months}}
+      <li>
+        <a href="{{monthURL .Year .Month}}">{{.MonthName}}</a>
+        <span class="month-count">({{len .Bookmarks}})</span>
+      </li>
+      {{end}}
+    </ul>
+  </section>
+  {{end}}
+</div>
+{{end}}

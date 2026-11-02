@@ -1,0 +1,32 @@
+{{define "base"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{block "title" .}}Bookmarks Archive{{end}}</title>
+  <link rel="stylesheet" href="{{relURL "static/style.css"}}">
+  {{block "head" .}}{{end}}
+</head>
+<body>
+  <div class="container">
+    <header class="site-header" data-pagefind-ignore>
+      <a href="{{relURL "/"}}" class="site-title">Bookmarks</a>
+      <nav class="site-nav">
+        <a href="{{relURL "/"}}">Recent</a>
+        <a href="{{relURL "archive/"}}">Timeline</a>
+        <a href="{{relURL "tags/"}}">Tags</a>
+        <a href="{{relURL "search/"}}">Search</a>
+      </nav>
+    </header>
+
+    <main id="content">
+      {{template "content" .}}
+    </main>
+
+    <footer class="site-footer" data-pagefind-ignore>
+      <p>Exported with <a href="https://github.com/lmorchard/linkding-ssg" target="_blank" rel="noopener">linkding-ssg</a> &middot; Built with Go & Pagefind</p>
+    </footer>
+  </div>
+</body>
+</html>
+{{end}}

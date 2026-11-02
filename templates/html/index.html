@@ -1,0 +1,16 @@
+{{define "title"}}Recent Bookmarks{{end}}
+
+{{define "content"}}
+<div class="intro-banner">
+  <h1>Recent Bookmarks</h1>
+  <p>Showing the most recently added bookmarks. Browse older entries in the <a href="{{relURL "archive/"}}">Timeline Archive</a>.</p>
+</div>
+
+<div class="bookmark-list">
+  {{range .Recent}}
+    {{template "bookmark_card" .}}
+  {{else}}
+    <p>No bookmarks found.</p>
+  {{end}}
+</div>
+{{end}}

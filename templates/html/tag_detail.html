@@ -1,0 +1,14 @@
+{{define "title"}}Bookmarks tagged #{{.Tag.Name}}{{end}}
+
+{{define "content"}}
+<div class="intro-banner">
+  <h1>#{{.Tag.Name}}</h1>
+  <p>{{len .Tag.Bookmarks}} bookmarks tagged with #{{.Tag.Name}} &middot; <a href="{{relURL "tags/"}}">&larr; All Tags</a></p>
+</div>
+
+<div class="bookmark-list">
+  {{range .Tag.Bookmarks}}
+    {{template "bookmark_card" .}}
+  {{end}}
+</div>
+{{end}}

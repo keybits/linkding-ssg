@@ -1,0 +1,17 @@
+{{define "title"}}Tags{{end}}
+
+{{define "content"}}
+<div class="intro-banner">
+  <h1>Tags</h1>
+  <p>{{len .Tags}} tags found across your collection.</p>
+</div>
+
+<div class="tag-cloud">
+  {{range .Tags}}
+  <a href="{{tagURL .Name}}" class="tag-pill">
+    <span>#{{.Name}}</span>
+    <span class="count">{{len .Bookmarks}}</span>
+  </a>
+  {{end}}
+</div>
+{{end}}
