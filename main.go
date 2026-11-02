@@ -17,13 +17,17 @@ import (
 	"github.com/lmorchard/linkding-ssg/pkg/storage"
 	"github.com/lmorchard/linkding-ssg/templates"
 )
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
 
 func main() {
 	// Load optional .env file if present
 	if err := config.LoadEnv(".env"); err != nil {
 		log.Printf("Warning: failed to read .env file: %v", err)
 	}
-
 	if len(os.Args) < 2 {
 		printUsage()
 		os.Exit(1)
@@ -46,6 +50,9 @@ func main() {
 		err = runServe(args)
 	case "sync":
 		err = runSync(args)
+	case "version", "-v", "--version":
+		fmt.Printf("linkding-ssg %s (commit: %s, built: %s)\n", version, commit, date)
+		return
 	case "help", "-h", "--help":
 		printUsage()
 		return
