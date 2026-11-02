@@ -163,6 +163,8 @@ func runBuild(args []string) error {
 	outputDir := fs.String("output-dir", "dist", "Directory to write static HTML site")
 	baseURL := fs.String("base-url", "", "Base URL path prefix (e.g. /bookmarks/)")
 	recentLimit := fs.Int("recent-limit", 50, "Number of bookmarks to show on home page")
+	rssLimit := fs.Int("rss-limit", 15, "Number of recent items to include in RSS feeds")
+	siteTitle := fs.String("site-title", "Bookmarks", "Site title for RSS feeds")
 	templatesDir := fs.String("templates-dir", "", "Optional custom directory for overriding HTML templates")
 	runIndexer := fs.Bool("index", false, "Run Pagefind indexer automatically after build")
 	fs.Parse(args)
@@ -178,6 +180,8 @@ func runBuild(args []string) error {
 		OutputDir:    *outputDir,
 		BaseURL:      *baseURL,
 		RecentLimit:  *recentLimit,
+		RSSLimit:     *rssLimit,
+		SiteTitle:    *siteTitle,
 		TemplatesDir: *templatesDir,
 	})
 	if err != nil {
@@ -231,6 +235,7 @@ func runSync(args []string) error {
 	outputDir := fs.String("output-dir", "dist", "Directory to write static HTML site")
 	baseURL := fs.String("base-url", "", "Base URL path prefix")
 	forceFull := fs.Bool("full", false, "Force a full backup instead of incremental")
+	rssLimit := fs.Int("rss-limit", 15, "Number of recent items to include in RSS feeds")
 	skipIndex := fs.Bool("skip-index", false, "Skip Pagefind search indexing step")
 	fs.Parse(args)
 
@@ -241,10 +246,9 @@ func runSync(args []string) error {
 	if err := runBackup(backupArgs); err != nil {
 		return err
 	}
-	buildArgs := []string{"--input", *dataSnapshot, "--output-dir", *outputDir, "--base-url", *baseURL}
+	buildArgs := []string{"--input", *dataSnapshot, "--output-dir", *outputDir, "--base-url", *baseURL, fmt.Sprintf("--rss-limit=%d", *rssLimit)}
 	if !*skipIndex {
 		buildArgs = append(buildArgs, "--index")
 	}
-
 	return runBuild(buildArgs)
 }

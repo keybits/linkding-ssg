@@ -65,11 +65,15 @@ Generate HTML into `dist/` directly from the local JSON file (no network calls):
 ./linkding-ssg build --input data/bookmarks.json --output-dir dist
 ```
 
+To configure RSS feed item counts (default 15) or site title:
+```bash
+./linkding-ssg build --rss-limit 25 --site-title "My Bookmarks"
+```
+
 To automatically run Pagefind search indexing after generating HTML:
 ```bash
 ./linkding-ssg build --input data/bookmarks.json --output-dir dist --index
 ```
-
 ### 3. Search Indexing Only
 
 If you regenerated or edited files and only need to re-index:

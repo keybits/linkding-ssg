@@ -19,6 +19,8 @@ type GeneratorOptions struct {
 	OutputDir    string
 	BaseURL      string
 	RecentLimit  int
+	RSSLimit     int    // number of recent items to include in RSS feeds (default 15)
+	SiteTitle    string // site title for RSS feeds
 	TemplatesDir string // optional template directory override
 }
 
@@ -35,6 +37,12 @@ func NewGenerator(opts GeneratorOptions) (*Generator, error) {
 	}
 	if opts.RecentLimit <= 0 {
 		opts.RecentLimit = 50
+	}
+	if opts.RSSLimit <= 0 {
+		opts.RSSLimit = 15
+	}
+	if opts.SiteTitle == "" {
+		opts.SiteTitle = "Bookmarks"
 	}
 
 	tmplSet, err := templates.LoadTemplates(opts.TemplatesDir, opts.BaseURL)
@@ -105,14 +113,35 @@ func (g *Generator) Generate(bookmarks []linkding.Bookmark) error {
 	}
 
 	// 7. Render Individual Tag Archives (tags/{tag}/index.html)
-	log.Printf("Rendering %d tag detail pages...", len(idx.Tags))
+	log.Printf("Rendering %d tag detail pages and RSS feeds...", len(idx.Tags))
 	for _, tag := range idx.Tags {
-		tagPath := filepath.Join("tags", SafeTagSlug(tag.Name), "index.html")
+		tagSlug := SafeTagSlug(tag.Name)
+		tagPath := filepath.Join("tags", tagSlug, "index.html")
 		if err := g.renderFile(tagPath, g.templates.TagDetailTemplate, map[string]any{
-			"Tag": tag,
+			"Tag":      tag,
+			"RSSLimit": g.opts.RSSLimit,
 		}); err != nil {
 			return fmt.Errorf("rendering tag detail %s: %w", tag.Name, err)
 		}
+
+		// Tag RSS feed (tags/{tag}/feed.xml)
+		tagFeedPath := filepath.Join(g.opts.OutputDir, "tags", tagSlug, "feed.xml")
+		tagFeedTitle := fmt.Sprintf("%s - #%s", g.opts.SiteTitle, tag.Name)
+		tagFeedLink := FullURL(g.opts.BaseURL, fmt.Sprintf("tags/%s/", tagSlug))
+		tagFeedDesc := fmt.Sprintf("Recent bookmarks tagged #%s", tag.Name)
+		if err := GenerateRSS(tagFeedPath, tagFeedTitle, tagFeedLink, tagFeedDesc, tag.Bookmarks, g.opts.RSSLimit); err != nil {
+			return fmt.Errorf("generating tag RSS for %s: %w", tag.Name, err)
+		}
+	}
+
+	// Overall Recent RSS feed (feed.xml)
+	log.Printf("Generating main RSS feed (recent %d bookmarks)...", g.opts.RSSLimit)
+	mainFeedPath := filepath.Join(g.opts.OutputDir, "feed.xml")
+	mainFeedTitle := g.opts.SiteTitle
+	mainFeedLink := FullURL(g.opts.BaseURL, "/")
+	mainFeedDesc := "Recent bookmarks"
+	if err := GenerateRSS(mainFeedPath, mainFeedTitle, mainFeedLink, mainFeedDesc, idx.AllBookmarks, g.opts.RSSLimit); err != nil {
+		return fmt.Errorf("generating main RSS: %w", err)
 	}
 
 	// 8. Render Sharded Individual Bookmark Permalinks (b/{shard}/{id}/index.html)
