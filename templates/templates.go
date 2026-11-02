@@ -28,7 +28,10 @@ type TemplateSet struct {
 	SearchTemplate    *template.Template
 }
 
-func funcMap(baseURL string) template.FuncMap {
+func funcMap(baseURL string, siteTitle string) template.FuncMap {
+	if siteTitle == "" {
+		siteTitle = "Bookmarks"
+	}
 	cleanBase := strings.TrimRight(baseURL, "/")
 	relURL := func(target string) string {
 		target = strings.TrimLeft(target, "/")
@@ -37,9 +40,11 @@ func funcMap(baseURL string) template.FuncMap {
 		}
 		return cleanBase + "/" + target
 	}
-
 	return template.FuncMap{
 		"relURL": relURL,
+		"siteTitle": func() string {
+			return siteTitle
+		},
 		"formatDate": func(t time.Time) string {
 			if t.IsZero() || t.Year() <= 1 {
 				return ""
@@ -74,8 +79,7 @@ func funcMap(baseURL string) template.FuncMap {
 }
 
 // LoadTemplates loads templates from overrideDir if provided/existing, or embedded FS.
-func LoadTemplates(overrideDir string, baseURL string) (*TemplateSet, error) {
-	// Determine if overrideDir exists and has files
+func LoadTemplates(overrideDir string, baseURL string, siteTitle string) (*TemplateSet, error) {
 	useDisk := false
 	if overrideDir != "" {
 		if stat, err := os.Stat(overrideDir); err == nil && stat.IsDir() {
@@ -95,7 +99,7 @@ func LoadTemplates(overrideDir string, baseURL string) (*TemplateSet, error) {
 	}
 
 	parseOne := func(name string, files ...string) (*template.Template, error) {
-		t := template.New(name).Funcs(funcMap(baseURL))
+		t := template.New(name).Funcs(funcMap(baseURL, siteTitle))
 		for _, f := range files {
 			content, err := readTemplateFile(f)
 			if err != nil {

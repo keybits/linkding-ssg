@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{block "title" .}}Bookmarks Archive{{end}}</title>
+  <title>{{block "title" .}}{{siteTitle}}{{end}}</title>
   <link rel="stylesheet" href="{{relURL "static/style.css"}}">
-  <link rel="alternate" type="application/rss+xml" title="Recent Bookmarks" href="{{relURL "feed.xml"}}">
+  <link rel="alternate" type="application/rss+xml" title="{{siteTitle}} RSS" href="{{relURL "feed.xml"}}">
   {{block "head" .}}{{end}}
 <body>
   <div class="container">
     <header class="site-header" data-pagefind-ignore>
-      <a href="{{relURL "/"}}" class="site-title">Bookmarks</a>
+      <a href="{{relURL "/"}}" class="site-title">{{siteTitle}}</a>
       <nav class="site-nav">
         <a href="{{relURL "/"}}">Recent</a>
         <a href="{{relURL "archive/"}}">Timeline</a>

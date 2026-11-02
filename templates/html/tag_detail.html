@@ -1,6 +1,6 @@
-{{define "title"}}Bookmarks tagged #{{.Tag.Name}}{{end}}
+{{define "title"}}{{siteTitle}} - #{{.Tag.Name}}{{end}}
 {{define "head"}}
-<link rel="alternate" type="application/rss+xml" title="#{{.Tag.Name}} Bookmarks RSS" href="feed.xml">
+<link rel="alternate" type="application/rss+xml" title="{{siteTitle}} - #{{.Tag.Name}} RSS" href="feed.xml">
 {{end}}
 
 {{define "content"}}

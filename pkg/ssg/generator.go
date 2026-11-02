@@ -69,7 +69,7 @@ func NewGenerator(opts GeneratorOptions) (*Generator, error) {
 		}
 	}
 
-	tmplSet, err := templates.LoadTemplates(opts.TemplatesDir, opts.BaseURL)
+	tmplSet, err := templates.LoadTemplates(opts.TemplatesDir, opts.BaseURL, opts.SiteTitle)
 	if err != nil {
 		return nil, fmt.Errorf("loading templates: %w", err)
 	}

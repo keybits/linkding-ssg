@@ -1,9 +1,9 @@
-{{define "title"}}Recent Bookmarks{{end}}
+{{define "title"}}{{siteTitle}} - Recent{{end}}
 
 {{define "content"}}
 <div class="intro-banner">
-  <h1>Recent Bookmarks</h1>
-  <p>Showing the most recently added bookmarks &middot; <a href="{{relURL "feed.xml"}}">RSS Feed</a> &middot; Browse older entries in the <a href="{{relURL "archive/"}}">Timeline Archive</a>.</p>
+  <h1>Recent {{siteTitle}}</h1>
+  <p>Showing the most recently added links &middot; <a href="{{relURL "feed.xml"}}">RSS Feed</a> &middot; Browse older entries in the <a href="{{relURL "archive/"}}">Timeline Archive</a>.</p>
 </div>
 
 <div class="bookmark-list">

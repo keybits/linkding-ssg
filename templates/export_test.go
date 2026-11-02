@@ -52,7 +52,7 @@ func TestLoadTemplates_Override(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	set, err := LoadTemplates(tmplDir, "")
+	set, err := LoadTemplates(tmplDir, "", "My Site")
 	if err != nil {
 		t.Fatalf("LoadTemplates failed: %v", err)
 	}
