@@ -32,7 +32,7 @@ func TestSnapshotSaveAndLoad(t *testing.T) {
 		},
 	}
 
-	err := SaveSnapshot(snapshotPath, "https://my-linkding.example.com", bookmarks)
+	err := SaveSnapshot(snapshotPath, "https://my-linkding.example.com", true, bookmarks)
 	if err != nil {
 		t.Fatalf("SaveSnapshot failed: %v", err)
 	}
@@ -47,6 +47,9 @@ func TestSnapshotSaveAndLoad(t *testing.T) {
 	}
 	if loaded.ServerURL != "https://my-linkding.example.com" {
 		t.Errorf("expected server url match, got %s", loaded.ServerURL)
+	}
+	if !loaded.SharedOnly {
+		t.Errorf("expected shared_only to round-trip as true")
 	}
 	if len(loaded.Bookmarks) != 2 {
 		t.Fatalf("expected 2 bookmarks in list, got %d", len(loaded.Bookmarks))

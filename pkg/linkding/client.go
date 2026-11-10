@@ -93,6 +93,7 @@ type Snapshot struct {
 	ExportedAt   time.Time  `json:"exported_at"`
 	ServerURL    string     `json:"server_url"`
 	TotalCount   int        `json:"total_count"`
+	SharedOnly   bool       `json:"shared_only,omitempty"`
 	Bookmarks    []Bookmark `json:"bookmarks"`
 }
 
@@ -101,6 +102,7 @@ type Client struct {
 	baseURL    *url.URL
 	token      string
 	httpClient *http.Client
+	sharedOnly bool
 }
 
 // ClientOptions configures a linkding API Client.
@@ -108,6 +110,8 @@ type ClientOptions struct {
 	BaseURL    string
 	Token      string
 	HTTPClient *http.Client
+	// SharedOnly restricts bulk fetches to bookmarks marked as shared.
+	SharedOnly bool
 }
 
 // NewClient creates a new linkding API Client.
@@ -131,6 +135,7 @@ func NewClient(opts ClientOptions) (*Client, error) {
 		baseURL:    parsedURL,
 		token:      opts.Token,
 		httpClient: httpClient,
+		sharedOnly: opts.SharedOnly,
 	}, nil
 }
 
@@ -139,6 +144,8 @@ type ListOptions struct {
 	Limit  int
 	Offset int
 	Query  string
+	// SharedOnly requests only shared bookmarks (linkding `shared=yes` filter).
+	SharedOnly bool
 }
 
 // GetBookmarks fetches a single page of bookmarks.
@@ -160,6 +167,9 @@ func (c *Client) GetBookmarks(ctx context.Context, opts ListOptions) (*BookmarkL
 	}
 	if opts.Query != "" {
 		query.Set("q", opts.Query)
+	}
+	if opts.SharedOnly {
+		query.Set("shared", "yes")
 	}
 	reqURL.RawQuery = query.Encode()
 
@@ -233,8 +243,9 @@ func (c *Client) FetchBookmarksIncremental(ctx context.Context, pageSize int, sh
 
 	for {
 		resp, err := c.GetBookmarks(ctx, ListOptions{
-			Limit:  pageSize,
-			Offset: offset,
+			Limit:      pageSize,
+			Offset:     offset,
+			SharedOnly: c.sharedOnly,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("fetching bookmarks at offset %d: %w", offset, err)
@@ -251,6 +262,11 @@ func (c *Client) FetchBookmarksIncremental(ctx context.Context, pageSize int, sh
 			if shouldStop != nil && shouldStop(b) {
 				stopped = true
 				break
+			}
+			// The `shared` query param is undocumented in linkding's API, so also
+			// filter locally in case the server ignores it.
+			if c.sharedOnly && !b.Shared {
+				continue
 			}
 			all = append(all, b)
 		}

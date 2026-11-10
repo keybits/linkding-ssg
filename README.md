@@ -57,6 +57,13 @@ To force a full sync of all bookmarks:
 ```bash
 ./linkding-ssg backup --full
 ```
+
+To only back up bookmarks marked as **shared** in linkding (e.g. to publish a public link blog):
+```bash
+./linkding-ssg backup --shared-only
+```
+
+The snapshot records whether it was created in shared-only mode. If you switch modes, the next backup automatically runs a full sync instead of an incremental one so private bookmarks aren't kept (or shared-only gaps aren't left behind). Note that, like other edits, un-sharing a bookmark that's already in the snapshot is only picked up by a `--full` backup.
 ### 2. Build the Static Site
 
 Generate HTML into `dist/` directly from the local JSON file (no network calls):
@@ -121,6 +128,7 @@ Every CLI option can be configured via flags, environment variables, or a `.env`
 | `--token` | `LINKDING_TOKEN` | *None (required)* | REST API token |
 | `--page-size` | `LINKDING_PAGE_SIZE` | `100` | API items fetched per request |
 | `--full` | `LINKDING_FULL_BACKUP` | `false` | Force full backup instead of incremental |
+| `--shared-only` | `LINKDING_SHARED_ONLY` | `false` | Only back up bookmarks marked as shared (`backup`, `sync`) |
 | `--output` / `--input` / `--snapshot` | `LINKDING_SNAPSHOT_PATH` | `data/bookmarks.json` | Path to JSON snapshot |
 | `--output-dir` / `--site-dir` | `LINKDING_OUTPUT_DIR` | `dist` | Generated HTML output directory |
 | `--base-url` | `LINKDING_BASE_URL` | `""` | Site URL prefix (e.g. `/` or `/bookmarks/`) |

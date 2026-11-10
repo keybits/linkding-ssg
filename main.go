@@ -82,6 +82,7 @@ Environment Variables & .env Configuration:
   LINKDING_TOKEN          Linkding REST API token
   LINKDING_PAGE_SIZE      Page size for API fetches (default: 100)
   LINKDING_FULL_BACKUP    Force full backup (true/false)
+  LINKDING_SHARED_ONLY    Only back up bookmarks marked as shared (true/false)
   LINKDING_SNAPSHOT_PATH  Snapshot JSON file path (default: data/bookmarks.json)
   LINKDING_OUTPUT_DIR     Static site output directory (default: dist)
   LINKDING_BASE_URL       Site base URL prefix (e.g. / or /bookmarks/)
@@ -133,6 +134,7 @@ func runBackup(args []string) error {
 	output := fs.String("output", getEnvOrDefault("LINKDING_SNAPSHOT_PATH", "data/bookmarks.json"), "Path to snapshot JSON output file (or LINKDING_SNAPSHOT_PATH env)")
 	pageSize := fs.Int("page-size", getEnvIntOrDefault("LINKDING_PAGE_SIZE", 100), "Number of bookmarks to fetch per API request (or LINKDING_PAGE_SIZE env)")
 	forceFull := fs.Bool("full", getEnvBoolOrDefault("LINKDING_FULL_BACKUP", false), "Force a full backup instead of incremental (or LINKDING_FULL_BACKUP env)")
+	sharedOnly := fs.Bool("shared-only", getEnvBoolOrDefault("LINKDING_SHARED_ONLY", false), "Only back up bookmarks marked as shared (or LINKDING_SHARED_ONLY env)")
 	fs.Parse(args)
 	if *apiURL == "" || *token == "" {
 		return fmt.Errorf("both --url and --token (or LINKDING_URL and LINKDING_TOKEN env vars) are required")
@@ -140,11 +142,15 @@ func runBackup(args []string) error {
 
 	log.Printf("Connecting to Linkding at %s...", *apiURL)
 	client, err := linkding.NewClient(linkding.ClientOptions{
-		BaseURL: *apiURL,
-		Token:   *token,
+		BaseURL:    *apiURL,
+		Token:      *token,
+		SharedOnly: *sharedOnly,
 	})
 	if err != nil {
 		return fmt.Errorf("creating API client: %w", err)
+	}
+	if *sharedOnly {
+		log.Println("Only backing up shared bookmarks (--shared-only)")
 	}
 
 	ctx := context.Background()
@@ -155,11 +161,18 @@ func runBackup(args []string) error {
 	knownIDs := make(map[int64]struct{})
 	if !*forceFull {
 		if prevSnapshot, err := storage.LoadSnapshot(*output); err == nil && len(prevSnapshot.Bookmarks) > 0 {
-			existingBookmarks = prevSnapshot.Bookmarks
-			for _, b := range existingBookmarks {
-				knownIDs[b.ID] = struct{}{}
+			if prevSnapshot.SharedOnly != *sharedOnly {
+				// Merging across modes would either keep private bookmarks in a
+				// shared-only snapshot or miss older unshared ones, so resync.
+				log.Printf("Existing snapshot shared-only mode (%t) differs from requested (%t). Forcing full backup...", prevSnapshot.SharedOnly, *sharedOnly)
+				*forceFull = true
+			} else {
+				existingBookmarks = prevSnapshot.Bookmarks
+				for _, b := range existingBookmarks {
+					knownIDs[b.ID] = struct{}{}
+				}
+				log.Printf("Found existing snapshot with %d bookmarks. Running incremental backup...", len(existingBookmarks))
 			}
-			log.Printf("Found existing snapshot with %d bookmarks. Running incremental backup...", len(existingBookmarks))
 		}
 	}
 
@@ -178,7 +191,7 @@ func runBackup(args []string) error {
 		bookmarks = storage.MergeBookmarks(fetchedNew, existingBookmarks)
 	} else {
 		if *forceFull {
-			log.Println("Starting full backup (--full specified)...")
+			log.Println("Starting full backup...")
 		} else {
 			log.Println("No existing snapshot found. Starting full initial backup...")
 		}
@@ -196,7 +209,7 @@ func runBackup(args []string) error {
 		}
 	}
 	log.Printf("Successfully fetched %d bookmarks. Writing atomic snapshot to %s...", len(bookmarks), *output)
-	if err := storage.SaveSnapshot(*output, *apiURL, bookmarks); err != nil {
+	if err := storage.SaveSnapshot(*output, *apiURL, *sharedOnly, bookmarks); err != nil {
 		return fmt.Errorf("saving snapshot: %w", err)
 	}
 
@@ -297,6 +310,7 @@ func runSync(args []string) error {
 	outputDir := fs.String("output-dir", getEnvOrDefault("LINKDING_OUTPUT_DIR", "dist"), "Directory to write static HTML site (or LINKDING_OUTPUT_DIR env)")
 	baseURL := fs.String("base-url", getEnvOrDefault("LINKDING_BASE_URL", ""), "Base URL path prefix (or LINKDING_BASE_URL env)")
 	forceFull := fs.Bool("full", getEnvBoolOrDefault("LINKDING_FULL_BACKUP", false), "Force a full backup instead of incremental (or LINKDING_FULL_BACKUP env)")
+	sharedOnly := fs.Bool("shared-only", getEnvBoolOrDefault("LINKDING_SHARED_ONLY", false), "Only back up bookmarks marked as shared (or LINKDING_SHARED_ONLY env)")
 	rssLimit := fs.Int("rss-limit", getEnvIntOrDefault("LINKDING_RSS_LIMIT", 15), "Number of recent items to include in RSS feeds (or LINKDING_RSS_LIMIT env)")
 	siteTitle := fs.String("site-title", getEnvOrDefault("LINKDING_SITE_TITLE", "Bookmarks"), "Site title for RSS feeds (or LINKDING_SITE_TITLE env)")
 	concurrency := fs.Int("concurrency", getEnvIntOrDefault("LINKDING_CONCURRENCY", 0), "Number of parallel workers (or LINKDING_CONCURRENCY env)")
@@ -310,6 +324,8 @@ func runSync(args []string) error {
 	if *forceFull {
 		backupArgs = append(backupArgs, "--full")
 	}
+	// Pass explicitly so a CLI --shared-only=false overrides LINKDING_SHARED_ONLY.
+	backupArgs = append(backupArgs, fmt.Sprintf("--shared-only=%t", *sharedOnly))
 	if err := runBackup(backupArgs); err != nil {
 		return err
 	}

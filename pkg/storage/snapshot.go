@@ -11,7 +11,8 @@ import (
 )
 
 // SaveSnapshot saves a snapshot atomically using a temporary file and atomic rename.
-func SaveSnapshot(filePath string, serverURL string, bookmarks []linkding.Bookmark) error {
+// sharedOnly records whether the snapshot contains only shared bookmarks.
+func SaveSnapshot(filePath string, serverURL string, sharedOnly bool, bookmarks []linkding.Bookmark) error {
 	dir := filepath.Dir(filePath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("creating directory %s: %w", dir, err)
@@ -21,6 +22,7 @@ func SaveSnapshot(filePath string, serverURL string, bookmarks []linkding.Bookma
 		ExportedAt: time.Now().UTC(),
 		ServerURL:  serverURL,
 		TotalCount: len(bookmarks),
+		SharedOnly: sharedOnly,
 		Bookmarks:  bookmarks,
 	}
 

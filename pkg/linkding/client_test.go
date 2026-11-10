@@ -101,6 +101,70 @@ func TestClient_FetchAllBookmarks(t *testing.T) {
 	}
 }
 
+func TestClient_FetchAllBookmarks_SharedOnly(t *testing.T) {
+	allMockBookmarks := []Bookmark{
+		{ID: 4, URL: "https://example.com/4", Shared: true},
+		{ID: 3, URL: "https://example.com/3", Shared: false},
+		{ID: 2, URL: "https://example.com/2", Shared: true},
+		{ID: 1, URL: "https://example.com/1", Shared: false},
+	}
+
+	for _, tc := range []struct {
+		name          string
+		serverFilters bool
+	}{
+		{name: "server honors shared param", serverFilters: true},
+		{name: "server ignores shared param", serverFilters: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotSharedParam string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				gotSharedParam = r.URL.Query().Get("shared")
+				results := allMockBookmarks
+				if tc.serverFilters && gotSharedParam == "yes" {
+					results = nil
+					for _, b := range allMockBookmarks {
+						if b.Shared {
+							results = append(results, b)
+						}
+					}
+				}
+				json.NewEncoder(w).Encode(BookmarkListResponse{
+					Count:   len(results),
+					Results: results,
+				})
+			}))
+			defer server.Close()
+
+			client, err := NewClient(ClientOptions{
+				BaseURL:    server.URL,
+				Token:      "secret",
+				SharedOnly: true,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			results, err := client.FetchAllBookmarks(context.Background(), 100, nil)
+			if err != nil {
+				t.Fatalf("FetchAllBookmarks failed: %v", err)
+			}
+
+			if gotSharedParam != "yes" {
+				t.Errorf("expected shared=yes query param, got %q", gotSharedParam)
+			}
+			if len(results) != 2 {
+				t.Fatalf("expected 2 shared bookmarks, got %d", len(results))
+			}
+			for _, b := range results {
+				if !b.Shared {
+					t.Errorf("got unshared bookmark %d", b.ID)
+				}
+			}
+		})
+	}
+}
+
 func TestClient_FetchBookmarksIncremental(t *testing.T) {
 	// Mock server with 100 items (IDs 100 down to 1)
 	totalBookmarks := 100
